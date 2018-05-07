@@ -28,12 +28,12 @@ private:
     VideoCapture cam;
     QTimer camTimer;
     Ui::MainWindow *ui;
-    int Edges();
-    int detectPeople();
-    int pythonLike();
+    String path_;
     void moinsFond();
+    void getBackground();
     Mat remove_small_objects( Mat img_in, int size );
     void skel(Mat &src,Mat &dst);
+    Mat background_, currentPic_, skel_;
 private slots:
     void getCamPic();
 };

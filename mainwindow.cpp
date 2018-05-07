@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include <iostream>
 #include "ui_mainwindow.h"
+#include <QDebug>
 
 using namespace cv;
 using namespace std;
@@ -14,256 +15,45 @@ MainWindow::MainWindow(QWidget *parent) :
     /*connect(&camTimer,  &QTimer::timeout, [&] {
         getCamPic();
     });
-    camTimer.setInterval(50);
-    camTimer.start();*/
-    //cam = 0;
-    //Edges();
-    //detectPeople();
-    moinsFond();
+    camTimer.setInterval(1000);*/
+    path_ = "C:/Users/Dorian/Desktop/Cours/Semestre 8/Couleur/Projet Couleur/Photos/";
+    cam = 0;
+    getBackground();
+    //camTimer.start();
+    getCamPic();
 }
 
 void MainWindow::getCamPic(){
-    Mat frame;
-    cam >> frame;
-    cv::flip(frame,frame,1);
-    Mat frameGrey;
-    cv::cvtColor(frame,frameGrey,COLOR_BGR2GRAY);
-    ui->label->setPixmap(QPixmap::fromImage(QImage(frame.data, frame.cols, frame.rows,frame.step, QImage::Format_RGB888)));
+    cam >> currentPic_;
+    moinsFond();
+    cv::flip(currentPic_,currentPic_,1);
+    ui->classicPicLabel->setPixmap(QPixmap::fromImage(QImage(currentPic_.data, currentPic_.cols, currentPic_.rows,currentPic_.step, QImage::Format_RGB888)));
+    //ui->skelPicLabel->setPixmap(QPixmap::fromImage(QImage(skel_.data, skel_.cols, skel_.rows,skel_.step,QImage::Format_Grayscale8)));
 }
 
-int MainWindow::Edges(){
-    //("Operator:\n 0: Opening - 1: Closing \n 2: Gradient - 3: Top Hat \n 4: Black Hat")
-    //("Element:\n 0: Rect - 1: Cross - 2: Ellipse")
-    Mat frame;
-    //cam >> frame;
-    string path = "C:/Users/Dorian/Desktop/Cours/Semestre 8/Couleur/Projet/1.jpg";
-    frame = imread(path,1);
-    cv::flip(frame,frame,1);
-    Mat frameGrey;
-    Mat element = getStructuringElement(2,Size(10,10));
-    cv::cvtColor(frame,frameGrey,COLOR_BGR2GRAY);
-    morphologyEx( frameGrey, frameGrey, 1, element );
-
-    // Apply filter
-    Canny(frameGrey, frameGrey, 6, 50);
-    // find the contours
-    vector< vector<Point> > contours;
-    findContours(frameGrey, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-
-    //Améliorations du contour
-    Mat frameGrey2;
-    morphologyEx( frameGrey, frameGrey2, 1, element );
-
-
-    // you could also reuse img1 here
-    Mat mask = Mat::zeros(frameGrey2.rows, frameGrey2.cols, CV_8UC1);
-
-    // CV_FILLED fills the connected components found
-    drawContours(mask, contours, -1, Scalar(255), CV_FILLED);
-
-    // let's create a new image now
-    Mat crop(frame.rows, frame.cols, CV_8UC3);
-
-    // set background to green
-    crop.setTo(Scalar(0,255,0));
-
-    // and copy the magic apple
-    frame.copyTo(crop, mask);
-
-    // normalize so imwrite(...)/imshow(...) shows the mask correctly!
-    normalize(mask.clone(), mask, 0.0, 255.0, CV_MINMAX, CV_8UC1);
-
-    // show the images
-    //imshow("original", frame);
-    //imshow("mask", mask);
-    imshow("canny", frameGrey);
-    imshow("canny2", frameGrey2);
-    //imshow("cropped", crop);
-    return 0;
-}
-
-IplImage* imfill(IplImage* src)
-{
-    CvScalar white = CV_RGB( 255, 255, 255 );
-
-    IplImage* dst = cvCreateImage( cvGetSize(src), 8, 3);
-    CvMemStorage* storage = cvCreateMemStorage(0);
-    CvSeq* contour = 0;
-
-    cvFindContours(src, storage, &contour, sizeof(CvContour), CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE );
-    cvZero( dst );
-
-    for( ; contour != 0; contour = contour->h_next )
-    {
-        cvDrawContours( dst, contour, white, white, 0, CV_FILLED);
-    }
-
-    IplImage* bin_imgFilled = cvCreateImage(cvGetSize(src), 8, 1);
-    cvInRangeS(dst, white, white, bin_imgFilled);
-
-    return bin_imgFilled;
-}
-
-int MainWindow::detectPeople(){
-    VideoCapture cap(0);
-    cap.set(CV_CAP_PROP_FRAME_WIDTH, 640);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
-    if (!cap.isOpened())
-        return -1;
-
-    Mat img;
-    //HOGDescriptor hog = HOGDescriptor(Size(32, 64),Size(8, 8),Size(4, 4),Size(4, 4), 9, 1,-1, 1, 0.2, true, 16);
-    HOGDescriptor hog;
-    hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
-
-    namedWindow("video capture", CV_WINDOW_AUTOSIZE);
-    while (true)
-    {
-        cap >> img;
-        if (!img.data) continue;
-
-        vector<Rect> found, found_filtered;
-        hog.detectMultiScale(img, found, 0, Size(8,8), Size(32,32), 1.05, 1);
-
-        size_t i, j;
-        for (i=0; i<found.size(); i++)
-        {
-            Rect r = found[i];
-            for (j=0; j<found.size(); j++)
-                if (j!=i && (r & found[j])==r) break;
-            if (j==found.size()) found_filtered.push_back(r);
-        }
-        for (i=0; i<found_filtered.size(); i++)
-        {
-            Rect r = found_filtered[i];
-                r.x += cvRound(r.width*0.1);
-            r.width = cvRound(r.width*0.8);
-            r.y += cvRound(r.height*0.06);
-            r.height = cvRound(r.height*0.9);
-            rectangle(img, r.tl(), r.br(), cv::Scalar(0,255,0), 2);
-        }
-        imshow("video capture", img);
-        if (waitKey(20) >= 0) break;
-    }
-    return 0;
-}
 MainWindow::~MainWindow()
 {
     delete ui;
 }
 
-int MainWindow::pythonLike(){
-    const int BLUR = 21;
-    const int CANNY_THRESH_1 = 5;
-    const int CANNY_THRESH_2 = 25;
-    const int MASK_DILATE_ITER = 10;
-    const int MASK_ERODE_ITER = 10;
-    const int MASK_COLOR = (0.0,0.0,1.0);
-/*
-    Mat img;
-    cam >> img;
-    cvtColor(img,imgGrey,COLOR_BGR2GRAY);
-
-    //-- Edge detection -------------------------------------------------------------------
-    Canny(imgGrey, edges, CANNY_THRESH_1, CANNY_THRESH_2);
-    Mat element = getStructuringElement( dilation_type,
-                                           Size( 2*dilation_size + 1, 2*dilation_size+1 ),
-                                           Point( dilation_size, dilation_size ) );
-    dilate(edges, edges, element);
-    erode(edges, edges, element);
-    imshow('img',edges);
-    waitKey();
-
-    #-- Find contours in edges, sort by area ---------------------------------------------
-    contour_info = []
-    _, contours,_ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    for c in contours:
-        contour_info.append((
-            c,
-            cv2.isContourConvex(c),
-            cv2.contourArea(c),
-        ))
-    contour_info = sorted(contour_info, key=lambda c: c[2], reverse=True)
-    max_contour = contour_info[0]
-
-    #-- Create empty mask, draw filled polygon on it corresponding to largest contour ----
-    # Mask is black, polygon is white
-    mask = np.zeros(edges.shape)
-    cv2.fillConvexPoly(mask, max_contour[0], (255))
-
-    #-- Smooth mask, then blur it --------------------------------------------------------
-    mask = cv2.dilate(mask, None, iterations=MASK_DILATE_ITER)
-    mask = cv2.erode(mask, None, iterations=MASK_ERODE_ITER)
-    mask = cv2.GaussianBlur(mask, (BLUR, BLUR), 0)
-    mask_stack = np.dstack([mask]*3)    # Create 3-channel alpha mask
-
-    #-- Blend masked img into MASK_COLOR background --------------------------------------
-    mask_stack  = mask_stack.astype('float32') / 255.0          # Use float matrices,
-    img         = img.astype('float32') / 255.0                 #  for easy blending
-
-    masked = (mask_stack * img) + ((1-mask_stack) * MASK_COLOR) # Blend
-    masked = (masked * 255).astype('uint8')                     # Convert back to 8-bit
-
-    cv2.imshow('img', masked)                                   # Display
-    cv2.waitKey()
-
-    #cv2.imwrite('C:/Temp/person-masked.jpg', masked)           # Save
-
-    # split image into channels
-    c_red, c_green, c_blue = cv2.split(img)
-
-    # merge with mask got on one of a previous steps
-    img_a = cv2.merge((c_red, c_green, c_blue, mask.astype('float32') / 255.0))*/
+void MainWindow::getBackground(){
+    cam >> background_;
+    imwrite( path_ + "BG/background.jpg", background_);
+    cvtColor(background_,background_,COLOR_BGR2GRAY);
 }
 
-
 void MainWindow::moinsFond(){
-    /*string path = "C:/Users/Dorian/Documents/QtCreator/Tatakai/1.jpg";
-    Mat fond = imread(path,1);
-    imshow("Fond",fond);
-
-    Mat frame;
-    cam >> frame;
-    imshow("Frame",frame);
-    imwrite( "C:/Users/Dorian/Documents/QtCreator/Tatakai/2.jpg", frame );
-
-    Mat nFrame;
-    nFrame = frame - fond;
-    imshow("nFrame",nFrame);
-    Mat frame;
-    cam >> frame;
-    imwrite( "C:/Users/Dorian/Documents/QtCreator/Tatakai/1.jpg", frame );*/
-
-    Mat fond = imread("C:/Users/Dorian/Documents/QtCreator/Tatakai/1.jpg");
-    Mat perso = imread("C:/Users/Dorian/Documents/QtCreator/Tatakai/2.jpg");
-    cvtColor(fond,fond,COLOR_BGR2GRAY);
-    cvtColor(perso,perso,COLOR_BGR2GRAY);
-    Mat id;
-
-    subtract(fond,perso,id);
-    imshow("Original", id);
-    waitKey(0);
-
-    threshold(id, id, 15, 255,THRESH_BINARY );
-    imshow("Original", id);
-    waitKey(0);
-
+    imwrite( path_ + "currentPic.jpg", currentPic_ );
+    cvtColor(currentPic_,currentPic_,COLOR_BGR2GRAY);
+    subtract(background_,currentPic_,skel_);
+    threshold(skel_, skel_, 15, 255,THRESH_BINARY );
     Mat element = getStructuringElement(2,Size(7,7));
-    morphologyEx( id, id, 0, element );
-    imshow("Original", id);
-    waitKey(0);
-
+    morphologyEx( skel_, skel_, 0, element );
     element = getStructuringElement(2,Size(15,15));
-    morphologyEx( id, id, 1, element );
-    imshow("Original", id);
-    waitKey(0);
-
-    /*id = remove_small_objects(id,10); // fait crash
-    imshow("Original", id);*/
-
-    skel(id,id);
-    imshow("Final", id);
-    waitKey(0);
+    morphologyEx( skel_, skel_, 1, element );
+    //skel_ = remove_small_objects(skel_,10); fait crash
+    skel(skel_,skel_);
+    imwrite( path_ + "skel_.jpg", skel_ );
 }
 
 
