@@ -45,14 +45,15 @@ SOURCES += \
         main.cpp \
         mainwindow.cpp \
     player.cpp \
-    attack.cpp \
-    game.cpp
+    attack.cpp
 
 HEADERS += \
         mainwindow.h \
     player.h \
-    attack.h \
-    game.h
+    attack.h
 
 FORMS += \
         mainwindow.ui
+
+RESOURCES += \
+    ressources.qrc

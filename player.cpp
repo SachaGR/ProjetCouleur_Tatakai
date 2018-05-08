@@ -1,6 +1,6 @@
 #include "player.h"
 
-Player::Player()
+Player::Player(String name)
 {
-
+    name_ = name;
 }

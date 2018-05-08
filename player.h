@@ -11,7 +11,7 @@ using namespace cv;
 class Player
 {
 public:
-    Player();
+    Player(String name);
 
     //Getters & Setters
     void setName(String name) {name_ = name;}
@@ -24,18 +24,13 @@ public:
     bool isShieldEnable() {return shieldEnable_;}
     void setShieldCD(int shieldCD) {shieldCD_ = shieldCD;}
     int getShieldCD() {return shieldCD_;}
-    void setPicture(Mat picture) {picture_ = picture;}
-    Mat getPicture() {return picture_;}
-
-
 
 private :
     String name_;
-    int pv_;
-    int score_;
-    bool shieldEnable_;
-    int shieldCD_;
-    Mat picture_;
+    int pv_ = 10;
+    int score_ = 0;
+    bool shieldEnable_ = true;
+    int shieldCD_ = 2;
 };
 
 #endif // PLAYER_H

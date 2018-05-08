@@ -1,7 +1,7 @@
 #ifndef ATTACK_H
 #define ATTACK_H
 
-#include "mainwindow.h"
+#include <QImage>
 #include "player.h"
 
 #include "opencv2/video/tracking.hpp"

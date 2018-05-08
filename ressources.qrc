@@ -1,0 +1,23 @@
+<RCC>
+    <qresource prefix="/img">
+        <file>GUI/Projet.png</file>
+        <file>GUI/P1 - 0pt.png</file>
+        <file>GUI/P1 - 1pt.png</file>
+        <file>GUI/P1 - 2pt.png</file>
+        <file>GUI/P2 - 0pt.png</file>
+        <file>GUI/P2 - 1pt.png</file>
+        <file>GUI/P2 - 2pt.png</file>
+        <file>GUI/Ultbar - 0.png</file>
+        <file>GUI/Ultbar - 1.png</file>
+        <file>GUI/Ultbar - 2.png</file>
+        <file>GUI/Ultbar - 3.png</file>
+        <file>GUI/Ultbar - 4.png</file>
+        <file>GUI/Ultbar - 5.png</file>
+        <file>GUI/Ultbar - 6.png</file>
+        <file>GUI/Ultbar - 7.png</file>
+        <file>GUI/Ultbar - 8.png</file>
+        <file>GUI/Ultbar - 9.png</file>
+        <file>GUI/Ultbar - 10.png</file>
+        <file>GUI/PP.png</file>
+    </qresource>
+</RCC>

@@ -12,23 +12,35 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    /*connect(&camTimer,  &QTimer::timeout, [&] {
+    connect(&camTimer,  &QTimer::timeout, [&] {
         getCamPic();
     });
-    camTimer.setInterval(1000);*/
+    camTimer.setInterval(10);
+    camTimer.start();
+
+    connect(&skelTimer,  &QTimer::timeout, [&] {
+        //moinsFond();
+    });
+    skelTimer.setInterval(30000);
+    skelTimer.start();
+
     path_ = "C:/Users/Dorian/Desktop/Cours/Semestre 8/Couleur/Projet Couleur/Photos/";
-    cam = 0;
-    getBackground();
-    //camTimer.start();
-    getCamPic();
+    camera_ = 0;
+    initGame();
 }
 
 void MainWindow::getCamPic(){
-    cam >> currentPic_;
-    moinsFond();
+    camera_ >> currentPic_;
     cv::flip(currentPic_,currentPic_,1);
-    //ui->classicPicLabel->setPixmap(QPixmap::fromImage(QImage(currentPic_.data, currentPic_.cols, currentPic_.rows,currentPic_.step, QImage::Format_RGB888)));
-    //ui->skelPicLabel->setPixmap(QPixmap::fromImage(QImage(skel_.data, skel_.cols, skel_.rows,skel_.step,QImage::Format_Grayscale8)));
+    ui->cameraLabel->setPixmap(QPixmap::fromImage(QImage(currentPic_.data, currentPic_.cols, currentPic_.rows,currentPic_.step, QImage::Format_RGB888)));
+}
+
+void MainWindow::initGame() {
+    players_.push_back(Player("Player 1"));
+    players_.push_back(Player("Player 2"));
+
+    //ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/P1 - " + to_string(players_[0].getScore()) + "pt.png")));
+    //ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/P2 - " + to_string(players_[1].getScore()) + "pt.png")));
 }
 
 MainWindow::~MainWindow()
@@ -37,13 +49,13 @@ MainWindow::~MainWindow()
 }
 
 void MainWindow::getBackground(){
-    cam >> background_;
+    camera_ >> background_;
     imwrite( path_ + "BG/background.jpg", background_);
     cvtColor(background_,background_,COLOR_BGR2GRAY);
 }
 
 void MainWindow::moinsFond(){
-    imwrite( path_ + "currentPic.jpg", currentPic_ );
+    //imwrite( path_ + "currentPic.jpg", currentPic_ );
     cvtColor(currentPic_,currentPic_,COLOR_BGR2GRAY);
     subtract(background_,currentPic_,skel_);
     threshold(skel_, skel_, 15, 255,THRESH_BINARY );
@@ -217,4 +229,25 @@ void endp(Mat &src,Mat &dst)
 
     // Чтобы было видно на экране
     dst=dst*255;
+}
+
+void MainWindow::on_updateBGButton_clicked()
+{
+    getBackground();
+}
+
+void MainWindow::on_updatePlayer1PicButton_clicked()
+{
+    Mat tmp;
+    camera_ >> tmp;
+    cv::flip(tmp,tmp,1);
+    ui->player1Label->setPixmap(QPixmap::fromImage(QImage(tmp.data, tmp.cols, tmp.rows,tmp.step, QImage::Format_RGB888)));
+}
+
+void MainWindow::on_updatePlayer2PicButton_clicked()
+{
+    Mat tmp;
+    camera_ >> tmp;
+    cv::flip(tmp,tmp,1);
+    ui->player2Label->setPixmap(QPixmap::fromImage(QImage(tmp.data, tmp.cols, tmp.rows,tmp.step, QImage::Format_RGB888)));
 }
