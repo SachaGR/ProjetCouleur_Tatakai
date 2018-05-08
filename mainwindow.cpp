@@ -27,7 +27,7 @@ void MainWindow::getCamPic(){
     cam >> currentPic_;
     moinsFond();
     cv::flip(currentPic_,currentPic_,1);
-    ui->classicPicLabel->setPixmap(QPixmap::fromImage(QImage(currentPic_.data, currentPic_.cols, currentPic_.rows,currentPic_.step, QImage::Format_RGB888)));
+    //ui->classicPicLabel->setPixmap(QPixmap::fromImage(QImage(currentPic_.data, currentPic_.cols, currentPic_.rows,currentPic_.step, QImage::Format_RGB888)));
     //ui->skelPicLabel->setPixmap(QPixmap::fromImage(QImage(skel_.data, skel_.cols, skel_.rows,skel_.step,QImage::Format_Grayscale8)));
 }
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1077</width>
-    <height>562</height>
+    <width>1073</width>
+    <height>855</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,16 +16,12 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
-     <widget class="QLabel" name="classicPicLabel">
+     <widget class="QLabel" name="label">
       <property name="text">
-       <string>Classic Picture Placeholder</string>
+       <string/>
       </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QLabel" name="skelPicLabel">
-      <property name="text">
-       <string>Skel Picture Placeholder</string>
+      <property name="pixmap">
+       <pixmap>GUI/Projet.png</pixmap>
       </property>
      </widget>
     </item>
@@ -36,7 +32,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1077</width>
+     <width>1073</width>
      <height>26</height>
     </rect>
    </property>
