@@ -43,10 +43,16 @@ LIBS += -L$$(OPENCV_DIR)\lib \
 
 SOURCES += \
         main.cpp \
-        mainwindow.cpp
+        mainwindow.cpp \
+    player.cpp \
+    attack.cpp \
+    game.cpp
 
 HEADERS += \
-        mainwindow.h
+        mainwindow.h \
+    player.h \
+    attack.h \
+    game.h
 
 FORMS += \
         mainwindow.ui
