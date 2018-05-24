@@ -16,10 +16,9 @@ Attack::Attack(String name, vector<int> refSkel, int damageMean, int ultCharge, 
  *  - bool ultUsed: determine if the ultimate is used or not
  *
  * Output:
- * void
  *
 */
-Attack::damage(Player player, bool ultUsed)
+void Attack::damage(Player player, bool ultUsed)
 {
     pv=player.getPv();
     dmg=damageMean_*(70+rand()%60)/100; // damage between 70% and 130% of damageMean.
