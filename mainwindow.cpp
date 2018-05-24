@@ -48,8 +48,14 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::getBackground(){
-    camera_ >> background_;
+void MainWindow::updateBackground(){
+    Mat mat1, mat2, mat3, mat4, mat5;
+    camera_ >> mat1;
+    camera_ >> mat2;
+    camera_ >> mat3;
+    camera_ >> mat4;
+    camera_ >> mat5;
+    background_ = (mat1/5+mat2/5+mat3/5+mat4/5+mat5/5) ;
     imwrite( path_ + "BG/background.jpg", background_);
     cvtColor(background_,background_,COLOR_BGR2GRAY);
 }
@@ -233,7 +239,7 @@ void endp(Mat &src,Mat &dst)
 
 void MainWindow::on_updateBGButton_clicked()
 {
-    getBackground();
+    updateBackground();
 }
 
 void MainWindow::on_updatePlayer1PicButton_clicked()

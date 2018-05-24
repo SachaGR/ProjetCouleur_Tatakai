@@ -41,7 +41,7 @@ public:
     void setRound(int round) {round_ = round;}
     int getRound() {return round_;}
     void setBackground(Mat background) {background_ = background;}
-    //Mat getBackground() {return background_;}
+    Mat getBackground() {return background_;}
 
 
 private:
@@ -57,7 +57,7 @@ private:
     QTimer skelTimer;
     Ui::MainWindow *ui;
     String path_;
-    void getBackground();
+    void updateBackground();
     Mat remove_small_objects( Mat img_in, int size );
     void skel(Mat &src,Mat &dst);
     Mat background_, currentPic_, skel_;
