@@ -5,13 +5,15 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
+#include <QImage>
+
 using namespace std;
 using namespace cv;
 
 class Player
 {
 public:
-    Player(String name);
+    Player(String name, int pv, int score, bool shieldEnable, int shieldCD, QImage photo);
 
     //Getters & Setters
     void setName(String name) {name_ = name;}

@@ -8,14 +8,16 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
+#include <cmath>
+
 using namespace std;
 using namespace cv;
 
 class Attack
 {
 public:
-    Attack();
-    void damage(Player player);
+    Attack(String name, vector<int> refSkel, int damageMean, int ultCharge, vector<QImage> animationSprites);
+    void damage(Player player, bool ultUsed);
     void animate();
 
     // Getters & Setters
@@ -32,7 +34,6 @@ private :
     int damageMean_;
     int ultCharge_;
     vector<QImage> animationSprites_;
-
 };
 
 #endif // ATTACK_H
