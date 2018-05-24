@@ -13,7 +13,7 @@ using namespace cv;
 class Player
 {
 public:
-    Player(String name, int pv, int score, bool shieldEnable, int shieldCD, QImage photo);
+    Player(String name, int pv, int score, bool shieldEnable, int shieldCD);
 
     //Getters & Setters
     void setName(String name) {name_ = name;}
