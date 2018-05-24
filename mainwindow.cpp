@@ -36,11 +36,12 @@ void MainWindow::getCamPic(){
 }
 
 void MainWindow::initGame() {
-    players_.push_back(Player("Player 1"));
-    players_.push_back(Player("Player 2"));
-
-    //ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/P1 - " + to_string(players_[0].getScore()) + "pt.png")));
-    //ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/P2 - " + to_string(players_[1].getScore()) + "pt.png")));
+    players_.push_back(Player("Player 1" , 10 , 1 , true, 2));
+    players_.push_back(Player("Player 2" , 10 , 2 , true, 2));
+    QString img1 = ":/img/GUI/P1 - " + QString::fromStdString(to_string(players_[0].getScore())) + "pt.png";
+    ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(img1)));
+    QString img2 = ":/img/GUI/P2 - " + QString::fromStdString(to_string(players_[1].getScore())) + "pt.png";
+    ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(img2)));
 }
 
 MainWindow::~MainWindow()

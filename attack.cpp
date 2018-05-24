@@ -20,8 +20,8 @@ Attack::Attack(String name, vector<int> refSkel, int damageMean, int ultCharge, 
 */
 void Attack::damage(Player player, bool ultUsed)
 {
-    pv=player.getPv();
-    dmg=damageMean_*(70+rand()%60)/100; // damage between 70% and 130% of damageMean.
+    float pv=player.getPv();
+    float dmg=damageMean_*(70+rand()%60)/100; // damage between 70% and 130% of damageMean.
     if (ultUsed){
         player.setPv(pv-dmg*2);
     }
