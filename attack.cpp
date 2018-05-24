@@ -16,6 +16,7 @@ Attack::Attack(String name, vector<int> refSkel, int damageMean, int ultCharge, 
  *  - bool ultUsed: determine if the ultimate is used or not
  *
  * Output:
+ * void
  *
 */
 Attack::damage(Player player, bool ultUsed)
