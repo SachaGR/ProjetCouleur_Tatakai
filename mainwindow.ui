@@ -205,6 +205,60 @@
         <bool>true</bool>
        </property>
       </widget>
+      <widget class="Line" name="seperatingLine">
+       <property name="geometry">
+        <rect>
+         <x>510</x>
+         <y>158</y>
+         <width>20</width>
+         <height>435</height>
+        </rect>
+       </property>
+       <property name="autoFillBackground">
+        <bool>false</bool>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">color : rgb(185, 187, 173)</string>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Plain</enum>
+       </property>
+       <property name="lineWidth">
+        <number>5</number>
+       </property>
+       <property name="midLineWidth">
+        <number>0</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+      </widget>
+      <widget class="Line" name="lineP1">
+       <property name="geometry">
+        <rect>
+         <x>321</x>
+         <y>161</y>
+         <width>3</width>
+         <height>427</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+      </widget>
+      <widget class="Line" name="lineP2">
+       <property name="geometry">
+        <rect>
+         <x>710</x>
+         <y>160</y>
+         <width>3</width>
+         <height>427</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+      </widget>
       <zorder>ultimateBarLabel</zorder>
       <zorder>player1Label</zorder>
       <zorder>player2Label</zorder>
@@ -216,6 +270,9 @@
       <zorder>updatePlayer2PicButton</zorder>
       <zorder>scorePlayer1Label</zorder>
       <zorder>scorePlayer2Label</zorder>
+      <zorder>seperatingLine</zorder>
+      <zorder>lineP1</zorder>
+      <zorder>lineP2</zorder>
      </widget>
     </item>
    </layout>
@@ -226,7 +283,7 @@
      <x>0</x>
      <y>0</y>
      <width>1045</width>
-     <height>26</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>
