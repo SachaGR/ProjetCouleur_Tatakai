@@ -53,21 +53,23 @@ private:
     vector<Attack> posKept_;
 
     VideoCapture camera_;
-    QTimer camTimer;
+    QTimer gameTimer;
     QTimer skelTimer;
     Ui::MainWindow *ui;
     String path_;
     void updateBackground();
-    Mat remove_small_objects( Mat img_in, int size );
+    void remove_small_objects( cv::Mat& im, double size);
     void skel(Mat &src,Mat &dst);
+    void switchTurn();
     Mat background_, currentPic_, skel_;
 
 private slots:
-    void getCamPic();
+    void updateGame();
     void moinsFond();
     void on_updateBGButton_clicked();
     void on_updatePlayer1PicButton_clicked();
     void on_updatePlayer2PicButton_clicked();
+    void on_moinsFond_clicked();
 };
 
 #endif // MAINWINDOW_H

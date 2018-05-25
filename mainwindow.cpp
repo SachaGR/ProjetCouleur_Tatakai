@@ -12,11 +12,11 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    connect(&camTimer,  &QTimer::timeout, [&] {
-        getCamPic();
+    connect(&gameTimer,  &QTimer::timeout, [&] {
+        updateGame();
     });
-    camTimer.setInterval(10);
-    camTimer.start();
+    gameTimer.setInterval(10);
+    gameTimer.start();
 
     connect(&skelTimer,  &QTimer::timeout, [&] {
         //moinsFond();
@@ -29,19 +29,39 @@ MainWindow::MainWindow(QWidget *parent) :
     initGame();
 }
 
-void MainWindow::getCamPic(){
+void MainWindow::updateGame(){
     camera_ >> currentPic_;
     cv::flip(currentPic_,currentPic_,1);
     ui->cameraLabel->setPixmap(QPixmap::fromImage(QImage(currentPic_.data, currentPic_.cols, currentPic_.rows,currentPic_.step, QImage::Format_RGB888)));
+
+
+}
+
+void MainWindow::switchTurn(){
+    activePlayer_ = !activePlayer_;
+    if (activePlayer_ == 0){
+            //ui->activePlayer1->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/ActivePlayerFrame.png")));
+            //ui->activePlayer2->setPixmap(QPixmap());
+            ui->activePlayer1->setStyleSheet("background-color:rgba(116, 116, 116, 220)");
+            ui->activePlayer2->setStyleSheet("");
+    }else{
+            //ui->activePlayer2->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/ActivePlayerFrame.png")));
+            //ui->activePlayer1->setPixmap(QPixmap());
+            ui->activePlayer2->setStyleSheet("background-color:rgba(116, 116, 116, 220)");
+            ui->activePlayer1->setStyleSheet("");
+    }
 }
 
 void MainWindow::initGame() {
-    players_.push_back(Player("Player 1" , 10 , 1 , true, 2));
-    players_.push_back(Player("Player 2" , 10 , 2 , true, 2));
+    background_ = imread(path_ + "BG/background.jpg");
+    players_.push_back(Player("Player 1" , 10 , 0 , true, 2));
+    players_.push_back(Player("Player 2" , 10 , 0 , true, 2));
     QString img1 = ":/img/GUI/P1 - " + QString::fromStdString(to_string(players_[0].getScore())) + "pt.png";
     ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(img1)));
     QString img2 = ":/img/GUI/P2 - " + QString::fromStdString(to_string(players_[1].getScore())) + "pt.png";
     ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(img2)));
+    activePlayer_ = rand()%2;
+    switchTurn();
 }
 
 MainWindow::~MainWindow()
@@ -62,7 +82,7 @@ void MainWindow::updateBackground(){
 }
 
 void MainWindow::moinsFond(){
-    //imwrite( path_ + "currentPic.jpg", currentPic_ );
+    imwrite( path_ + "currentPic.jpg", currentPic_ );
     cvtColor(currentPic_,currentPic_,COLOR_BGR2GRAY);
     subtract(background_,currentPic_,skel_);
     threshold(skel_, skel_, 15, 255,THRESH_BINARY );
@@ -70,7 +90,7 @@ void MainWindow::moinsFond(){
     morphologyEx( skel_, skel_, 0, element );
     element = getStructuringElement(2,Size(15,15));
     morphologyEx( skel_, skel_, 1, element );
-    //skel_ = remove_small_objects(skel_,10); fait crash
+    remove_small_objects(skel_,10);
     skel(skel_,skel_);
     imwrite( path_ + "skel_.jpg", skel_ );
 }
@@ -78,37 +98,25 @@ void MainWindow::moinsFond(){
 
 
 // Function to remove small blobs from the binary image
-Mat MainWindow::remove_small_objects( Mat img_in, int size )
+void MainWindow::remove_small_objects( cv::Mat& im, double size )
 {
-    CvMemStorage* storage   = cvCreateMemStorage( 0 );    // container of retrieved contours
-    CvSeq* contours         = NULL;
-    CvScalar black          = CV_RGB( 0, 0, 0 ); // black color
-    CvScalar white          = CV_RGB( 255, 255, 255 );   // white color
-    double area;
+    // Only accept CV_8UC1
+        if (im.channels() != 1 || im.type() != CV_8U)
+            return;
 
-    // find contours in binary image
-    IplImage img_in2 = img_in;
-    IplImage img_out2 = img_in;
-    cvFindContours( &img_in2, storage, &contours, sizeof( CvContour ), CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE );
+        // Find all contours
+        std::vector<std::vector<cv::Point> > contours;
+        cv::findContours(im.clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
-    while( contours )   // loop over all the contours
-    {
-        area = cvContourArea( contours, CV_WHOLE_SEQ );
-        if( fabs( area ) <= size )  // if the area of the contour is less than threshold remove it
+        for (int i = 0; i < contours.size(); i++)
         {
-            // draws the contours into a new image
-            cvDrawContours( &img_out2, contours, black, black, -1, CV_FILLED, 8 ); // removes white dots
+            // Calculate contour area
+            double area = cv::contourArea(contours[i]);
+
+            // Remove small objects by drawing the contour with black color
+            if (area > 0 && area <= size)
+                cv::drawContours(im, contours, i, CV_RGB(0, 0, 0), -1);
         }
-/*        else
-        {
-            cvDrawContours( img_out, contours, white, white, -1, CV_FILLED, 8 ); // fills in holes
-        }*/
-        contours = contours->h_next;    // jump to the next contour
-    }
-
-    cvReleaseMemStorage( &storage );
-    Mat img_out = cvarrToMat(&img_out2);
-    return img_out;
 }
 
 void GetLutSkel(Mat& Lut)
@@ -257,4 +265,10 @@ void MainWindow::on_updatePlayer2PicButton_clicked()
     camera_ >> tmp;
     cv::flip(tmp,tmp,1);
     ui->player2Label->setPixmap(QPixmap::fromImage(QImage(tmp.data, tmp.cols, tmp.rows,tmp.step, QImage::Format_RGB888)));
+}
+
+void MainWindow::on_moinsFond_clicked()
+{
+    //moinsFond();
+    switchTurn();
 }

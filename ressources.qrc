@@ -19,5 +19,6 @@
         <file>GUI/Ultbar - 9.png</file>
         <file>GUI/Ultbar - 10.png</file>
         <file>GUI/PP.png</file>
+        <file>GUI/ActivePlayerFrame.png</file>
     </qresource>
 </RCC>

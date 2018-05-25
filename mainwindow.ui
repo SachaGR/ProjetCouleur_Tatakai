@@ -259,6 +259,51 @@
         <enum>Qt::Vertical</enum>
        </property>
       </widget>
+      <widget class="QPushButton" name="moinsFond">
+       <property name="geometry">
+        <rect>
+         <x>750</x>
+         <y>680</y>
+         <width>93</width>
+         <height>28</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>MoinsFond-tmp</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="activePlayer1">
+       <property name="geometry">
+        <rect>
+         <x>124</x>
+         <y>155</y>
+         <width>401</width>
+         <height>441</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="scaledContents">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QLabel" name="activePlayer2">
+       <property name="geometry">
+        <rect>
+         <x>510</x>
+         <y>150</y>
+         <width>401</width>
+         <height>441</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="scaledContents">
+        <bool>true</bool>
+       </property>
+      </widget>
       <zorder>ultimateBarLabel</zorder>
       <zorder>player1Label</zorder>
       <zorder>player2Label</zorder>
@@ -273,6 +318,9 @@
       <zorder>seperatingLine</zorder>
       <zorder>lineP1</zorder>
       <zorder>lineP2</zorder>
+      <zorder>moinsFond</zorder>
+      <zorder>activePlayer1</zorder>
+      <zorder>activePlayer2</zorder>
      </widget>
     </item>
    </layout>
@@ -283,7 +331,7 @@
      <x>0</x>
      <y>0</y>
      <width>1045</width>
-     <height>21</height>
+     <height>26</height>
     </rect>
    </property>
   </widget>
