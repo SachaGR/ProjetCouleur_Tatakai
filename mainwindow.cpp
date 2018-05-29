@@ -104,7 +104,7 @@ void MainWindow::updateBackground(){
 void MainWindow::moinsFond(){
     Mat currentPlayer (currentPic_, Rect(0 + 320*activePlayer_, 0, 320, 480));
     Mat currentBG (background_, Rect(0 + 320*activePlayer_, 0, 320, 480));
-    //imwrite( path_ + "currentPic.jpg", currentPlayer );
+    imwrite( path_ + "currentPic.jpg", currentPlayer );
     cvtColor(currentPlayer,currentPlayer,COLOR_BGR2GRAY);
     //subtract(currentBG,currentPlayer,skel_);
     //threshold(skel_, skel_, 15, 255,THRESH_BINARY );
