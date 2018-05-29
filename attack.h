@@ -16,8 +16,8 @@ using namespace cv;
 class Attack
 {
 public:
-    Attack(String name, vector<int> refSkel, int damageMean, int ultCharge, vector<QImage> animationSprites);
-    void damage(Player player, bool ultUsed);
+    Attack(String name, int damageMean, int ultCharge, vector<QImage> animationSprites);
+    void damage(Player *player, bool ultUsed);
     void animate();
 
     // Getters & Setters
@@ -30,7 +30,6 @@ public:
 
 private :
     String name_;
-    vector<int> refSkel_;
     int damageMean_;
     int ultCharge_;
     vector<QImage> animationSprites_;

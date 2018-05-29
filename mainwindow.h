@@ -32,14 +32,18 @@ public:
     void updateBG();
     void updatePP(Player player);
     Attack compareSkel(Mat Skel);
+    void updateBackground();
+    void remove_small_objects( cv::Mat& im, double size);
+    void skel(Mat &src,Mat &dst);
+    void switchTurn();
+    void timerForAttack();
+    void attack();
 
     //Getters & Setters
     void setUltimateCharge(int ultimateCharge) {ultimateCharge_ = ultimateCharge;}
     int getUltimateCharge() {return ultimateCharge_;}
     void setActivePlayer(int activePlayer) {activePlayer_ = activePlayer;}
     int getActivePlayer() {return activePlayer_;}
-    void setRound(int round) {round_ = round;}
-    int getRound() {return round_;}
     void setBackground(Mat background) {background_ = background;}
     Mat getBackground() {return background_;}
 
@@ -49,18 +53,15 @@ private:
     vector<Player> players_;
     vector<Attack> attacks_;
     int activePlayer_;
-    int round_;
-    vector<Attack> posKept_;
+    int currentAttack_ = 0;
 
     VideoCapture camera_;
     QTimer gameTimer;
     QTimer skelTimer;
+    QTimer attackTimer;
     Ui::MainWindow *ui;
     String path_;
-    void updateBackground();
-    void remove_small_objects( cv::Mat& im, double size);
-    void skel(Mat &src,Mat &dst);
-    void switchTurn();
+    int time_ = -2;
     Mat background_, currentPic_, skel_;
 
 private slots:

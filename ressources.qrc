@@ -20,5 +20,8 @@
         <file>GUI/Ultbar - 10.png</file>
         <file>GUI/PP.png</file>
         <file>GUI/ActivePlayerFrame.png</file>
+        <file>GUI/deux.jpg</file>
+        <file>GUI/trois.jpg</file>
+        <file>GUI/un.jpg</file>
     </qresource>
 </RCC>

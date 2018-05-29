@@ -1,9 +1,8 @@
 #include "attack.h"
 
-Attack::Attack(String name, vector<int> refSkel, int damageMean, int ultCharge, vector<QImage> animationSprites)
+Attack::Attack(String name, int damageMean, int ultCharge, vector<QImage> animationSprites)
 {
     name_ = name;
-    refSkel_ = refSkel;
     damageMean_ = damageMean;
     ultCharge_ = ultCharge;
     animationSprites_ = animationSprites;
@@ -18,15 +17,15 @@ Attack::Attack(String name, vector<int> refSkel, int damageMean, int ultCharge, 
  * Output:
  *
 */
-void Attack::damage(Player player, bool ultUsed)
+void Attack::damage(Player *player, bool ultUsed)
 {
-    float pv=player.getPv();
+    float pv=player->getPv();
     float dmg=damageMean_*(70+rand()%60)/100; // damage between 70% and 130% of damageMean.
     if (ultUsed){
-        player.setPv(pv-dmg*2);
+        player->setPv(pv-dmg*2);
     }
     else{
-        player.setPv(pv-dmg);
+        player->setPv(pv-dmg);
     }
 }
 

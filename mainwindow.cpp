@@ -24,6 +24,12 @@ MainWindow::MainWindow(QWidget *parent) :
     skelTimer.setInterval(30000);
     skelTimer.start();
 
+    connect(&attackTimer,  &QTimer::timeout, [&] {
+        timerForAttack();
+    });
+    attackTimer.setInterval(1000);
+    attackTimer.start();
+
     path_ = "C:/Users/Dorian/Desktop/Cours/Semestre 8/Couleur/Projet Couleur/Photos/";
     camera_ = 0;
     initGame();
@@ -33,13 +39,11 @@ void MainWindow::updateGame(){
     camera_ >> currentPic_;
     cv::flip(currentPic_,currentPic_,1);
     ui->cameraLabel->setPixmap(QPixmap::fromImage(QImage(currentPic_.data, currentPic_.cols, currentPic_.rows,currentPic_.step, QImage::Format_RGB888)));
-
-
 }
 
 void MainWindow::switchTurn(){
     activePlayer_ = !activePlayer_;
-    if (activePlayer_ == 0){
+    if (activePlayer_ == 1){
             //ui->activePlayer1->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/ActivePlayerFrame.png")));
             //ui->activePlayer2->setPixmap(QPixmap());
             ui->activePlayer1->setStyleSheet("background-color:rgba(116, 116, 116, 220)");
@@ -50,16 +54,32 @@ void MainWindow::switchTurn(){
             ui->activePlayer2->setStyleSheet("background-color:rgba(116, 116, 116, 220)");
             ui->activePlayer1->setStyleSheet("");
     }
+    time_ = -2;
 }
 
 void MainWindow::initGame() {
-    background_ = imread(path_ + "BG/background.jpg");
-    players_.push_back(Player("Player 1" , 10 , 0 , true, 2));
-    players_.push_back(Player("Player 2" , 10 , 0 , true, 2));
+    // Init Players
+    players_.push_back(Player("Player 1" , 100 , 0 , true, 2));
+    players_.push_back(Player("Player 2" , 100 , 0 , true, 2));
+
+    // Init Score
     QString img1 = ":/img/GUI/P1 - " + QString::fromStdString(to_string(players_[0].getScore())) + "pt.png";
     ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(img1)));
     QString img2 = ":/img/GUI/P2 - " + QString::fromStdString(to_string(players_[1].getScore())) + "pt.png";
     ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(img2)));
+
+    // Init Attacks
+    vector<QImage> animationSpritesLaser;
+    attacks_.push_back(Attack("Laser", 10, 1, animationSpritesLaser));
+    vector<QImage> animationSpritesLightning;
+    attacks_.push_back(Attack("Lightning", 20, 3, animationSpritesLightning));
+    vector<QImage> animationSpritesRocket;
+    attacks_.push_back(Attack("Rocket", 15, 2, animationSpritesRocket));
+
+    // Init Background
+    updateBackground();
+
+    // Select the first player and display it
     activePlayer_ = rand()%2;
     switchTurn();
 }
@@ -82,20 +102,70 @@ void MainWindow::updateBackground(){
 }
 
 void MainWindow::moinsFond(){
-    imwrite( path_ + "currentPic.jpg", currentPic_ );
-    cvtColor(currentPic_,currentPic_,COLOR_BGR2GRAY);
-    subtract(background_,currentPic_,skel_);
-    threshold(skel_, skel_, 15, 255,THRESH_BINARY );
+    Mat currentPlayer (currentPic_, Rect(0 + 320*activePlayer_, 0, 320, 480));
+    Mat currentBG (background_, Rect(0 + 320*activePlayer_, 0, 320, 480));
+    //imwrite( path_ + "currentPic.jpg", currentPlayer );
+    cvtColor(currentPlayer,currentPlayer,COLOR_BGR2GRAY);
+    //subtract(currentBG,currentPlayer,skel_);
+    //threshold(skel_, skel_, 15, 255,THRESH_BINARY );
     Mat element = getStructuringElement(2,Size(7,7));
-    morphologyEx( skel_, skel_, 0, element );
+    //morphologyEx( skel_, skel_, 0, element );
     element = getStructuringElement(2,Size(15,15));
-    morphologyEx( skel_, skel_, 1, element );
-    remove_small_objects(skel_,10);
-    skel(skel_,skel_);
-    imwrite( path_ + "skel_.jpg", skel_ );
+    //morphologyEx( skel_, skel_, 1, element );
+    //remove_small_objects(skel_,10);
+    //skel(skel_,skel_);
+    //imwrite( path_ + "skel_.jpg", skel_ );
+    attack();
+    switchTurn();
 }
 
+void MainWindow::attack(){
+    attacks_[currentAttack_].damage(&players_[!activePlayer_],ultimateCharge_>=10);
+    if (ultimateCharge_ >= 10) ultimateCharge_ = 0;
+    ultimateCharge_ += attacks_[currentAttack_].getUltCharge();
+    if (ultimateCharge_ >= 10) ultimateCharge_ = 10;
+    // animation
+    ui->ultimateBarLabel->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Ultbar - " + QString::fromStdString(to_string(ultimateCharge_))+ ".png")));
+    ui->player1Lifebar->setValue(players_[0].getPv());
+    ui->player2Lifebar->setValue(players_[1].getPv());
+    // Pour des tests, a virer !
+    currentAttack_ ++;
+    if (currentAttack_ >=3) currentAttack_= 0;
+}
 
+void MainWindow::timerForAttack(){
+    if (!activePlayer_ && time_ >= 1){
+        if (time_ == 1) {
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/trois.jpg")));
+        }
+        else if (time_ == 2) {
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/deux.jpg")));
+        }
+        else if (time_ == 3) {
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/un.jpg")));
+        }
+        else {
+            ui->activePlayer1_timer->setPixmap(QPixmap());
+            moinsFond();
+        }
+    }
+    else if (time_ >= 1){
+        if (time_ == 1) {
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/trois.jpg")));
+        }
+        else if (time_ == 2) {
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/deux.jpg")));
+        }
+        else if (time_ == 3) {
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/un.jpg")));
+        }
+        else {
+            ui->activePlayer2_timer->setPixmap(QPixmap());
+            moinsFond();
+        }
+    }
+    time_++;
+}
 
 // Function to remove small blobs from the binary image
 void MainWindow::remove_small_objects( cv::Mat& im, double size )
@@ -255,6 +325,7 @@ void MainWindow::on_updatePlayer1PicButton_clicked()
 {
     Mat tmp;
     camera_ >> tmp;
+    tmp = Mat(tmp,Rect(320,0,320,480));
     cv::flip(tmp,tmp,1);
     ui->player1Label->setPixmap(QPixmap::fromImage(QImage(tmp.data, tmp.cols, tmp.rows,tmp.step, QImage::Format_RGB888)));
 }
@@ -263,12 +334,13 @@ void MainWindow::on_updatePlayer2PicButton_clicked()
 {
     Mat tmp;
     camera_ >> tmp;
+    tmp = Mat(tmp,Rect(0,0,320,480));
     cv::flip(tmp,tmp,1);
     ui->player2Label->setPixmap(QPixmap::fromImage(QImage(tmp.data, tmp.cols, tmp.rows,tmp.step, QImage::Format_RGB888)));
 }
 
 void MainWindow::on_moinsFond_clicked()
 {
-    //moinsFond();
+    moinsFond();
     switchTurn();
 }
