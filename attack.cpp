@@ -1,6 +1,6 @@
 #include "attack.h"
 
-Attack::Attack(String name, int damageMean, int ultCharge, vector<QImage> animationSprites)
+Attack::Attack(String name, int damageMean, int ultCharge, QPixmap animationSprites)
 {
     name_ = name;
     damageMean_ = damageMean;
@@ -19,13 +19,12 @@ Attack::Attack(String name, int damageMean, int ultCharge, vector<QImage> animat
 */
 void Attack::damage(Player *player, bool ultUsed)
 {
-    float pv=player->getPv();
-    float dmg=damageMean_*(70+rand()%60)/100; // damage between 70% and 130% of damageMean.
+    int pv=player->getPv();
+    int dmg=floor(damageMean_*(70+rand()%60)/100); // damage between 70% and 130% of damageMean.
     if (ultUsed){
-        player->setPv(pv-dmg*2);
+        player->setPv(pv-(dmg*2));
     }
     else{
         player->setPv(pv-dmg);
     }
 }
-

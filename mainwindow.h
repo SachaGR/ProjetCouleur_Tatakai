@@ -38,6 +38,10 @@ public:
     void switchTurn();
     void timerForAttack();
     void attack();
+    void animateAttacks();
+    void restartGame();
+    void thinningIteration(cv::Mat& img, int iter);
+    void thinning(const cv::Mat& src, cv::Mat& dst);
 
     //Getters & Setters
     void setUltimateCharge(int ultimateCharge) {ultimateCharge_ = ultimateCharge;}
@@ -49,16 +53,17 @@ public:
 
 
 private:
-    int ultimateCharge_;
+    int ultimateCharge_ = 0;
     vector<Player> players_;
     vector<Attack> attacks_;
     int activePlayer_;
-    int currentAttack_ = 0;
-
+    int currentAttack_ = 6;
+    int animationState_ = 0;
     VideoCapture camera_;
     QTimer gameTimer;
     QTimer skelTimer;
     QTimer attackTimer;
+    QTimer animationTimer_;
     Ui::MainWindow *ui;
     String path_;
     int time_ = -2;

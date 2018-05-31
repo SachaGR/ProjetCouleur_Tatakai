@@ -358,9 +358,9 @@
       <widget class="QProgressBar" name="player2Lifebar">
        <property name="geometry">
         <rect>
-         <x>570</x>
+         <x>580</x>
          <y>40</y>
-         <width>321</width>
+         <width>311</width>
          <height>31</height>
         </rect>
        </property>

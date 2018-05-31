@@ -29,7 +29,7 @@ public:
 
 private :
     String name_;
-    int pv_ = 10;
+    int pv_ = 100;
     int score_ = 0;
     bool shieldEnable_ = true;
     int shieldCD_ = 2;

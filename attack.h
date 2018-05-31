@@ -1,7 +1,6 @@
 #ifndef ATTACK_H
 #define ATTACK_H
 
-#include <QImage>
 #include "player.h"
 
 #include "opencv2/video/tracking.hpp"
@@ -9,6 +8,8 @@
 #include "opencv2/highgui/highgui.hpp"
 
 #include <cmath>
+#include <QPixmap>
+#include <QTimer>
 
 using namespace std;
 using namespace cv;
@@ -16,7 +17,7 @@ using namespace cv;
 class Attack
 {
 public:
-    Attack(String name, int damageMean, int ultCharge, vector<QImage> animationSprites);
+    Attack(String name, int damageMean, int ultCharge, QPixmap animationSprites);
     void damage(Player *player, bool ultUsed);
     void animate();
 
@@ -32,7 +33,8 @@ private :
     String name_;
     int damageMean_;
     int ultCharge_;
-    vector<QImage> animationSprites_;
+    QPixmap animationSprites_;
+    int currentAnimationFrame_;
 };
 
 #endif // ATTACK_H

@@ -20,8 +20,26 @@
         <file>GUI/Ultbar - 10.png</file>
         <file>GUI/PP.png</file>
         <file>GUI/ActivePlayerFrame.png</file>
-        <file>GUI/deux.jpg</file>
-        <file>GUI/trois.jpg</file>
-        <file>GUI/un.jpg</file>
+        <file>GUI/Lightning/eclair1.png</file>
+        <file>GUI/Lightning/eclair2.png</file>
+        <file>GUI/Lightning/eclair3.png</file>
+        <file>GUI/Lightning/eclair4.png</file>
+        <file>GUI/Lightning/eclair5.png</file>
+        <file>GUI/Lightning/eclair6.png</file>
+        <file>GUI/Meteore/boule1.png</file>
+        <file>GUI/Meteore/boule2.png</file>
+        <file>GUI/Meteore/boule3.png</file>
+        <file>GUI/Meteore/boule4.png</file>
+        <file>GUI/Meteore/boule5.png</file>
+        <file>GUI/deux.png</file>
+        <file>GUI/trois.png</file>
+        <file>GUI/un.png</file>
+        <file>GUI/Meteore/feu1.png</file>
+        <file>GUI/Meteore/feu2.png</file>
+        <file>GUI/Meteore/feu3.png</file>
+        <file>GUI/Meteore/feu4.png</file>
+        <file>GUI/Meteore/feu5.png</file>
+        <file>GUI/youLose.png</file>
+        <file>GUI/youWin.png</file>
     </qresource>
 </RCC>

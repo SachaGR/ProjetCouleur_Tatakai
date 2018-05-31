@@ -30,6 +30,13 @@ MainWindow::MainWindow(QWidget *parent) :
     attackTimer.setInterval(1000);
     attackTimer.start();
 
+    connect(&animationTimer_,  &QTimer::timeout, [&] {
+        animateAttacks();
+        animationState_ ++;
+    });
+    animationTimer_.setInterval(100);
+    animationTimer_.start();
+
     path_ = "C:/Users/Dorian/Desktop/Cours/Semestre 8/Couleur/Projet Couleur/Photos/";
     camera_ = 0;
     initGame();
@@ -37,8 +44,59 @@ MainWindow::MainWindow(QWidget *parent) :
 
 void MainWindow::updateGame(){
     camera_ >> currentPic_;
-    cv::flip(currentPic_,currentPic_,1);
+    flip(currentPic_,currentPic_,1);
     ui->cameraLabel->setPixmap(QPixmap::fromImage(QImage(currentPic_.data, currentPic_.cols, currentPic_.rows,currentPic_.step, QImage::Format_RGB888)));
+
+    if (players_[0].getPv() <= 0)
+    {
+        players_[0].setPv(0);
+        ui->player1Lifebar->setValue(players_[0].getPv());
+        animationTimer_.stop();
+        attackTimer.stop();
+        players_[1].setScore(players_[1].getScore() + 1);
+        if (players_[1].getScore() >= 2)
+        {
+            players_[1].setScore(2);
+            QString img2 = ":/img/GUI/P2 - " + QString::fromStdString(to_string(players_[1].getScore())) + "pt.png";
+            ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(img2)));
+
+            // Arrêt du jeu
+            gameTimer.stop();
+
+            // Affichage de victoire
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/GUI/youWin.png")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/GUI/youLose.png")));
+        }
+        else
+        {
+            restartGame();
+        }
+    }
+    if (players_[1].getPv() <= 0)
+    {
+        players_[1].setPv(0);
+        ui->player2Lifebar->setValue(players_[1].getPv());
+        animationTimer_.stop();
+        attackTimer.stop();
+        players_[0].setScore(players_[0].getScore() + 1);
+        if (players_[0].getScore() >= 2)
+        {
+            players_[0].setScore(2);
+            QString img1 = ":/img/GUI/P1 - " + QString::fromStdString(to_string(players_[0].getScore())) + "pt.png";
+            ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(img1)));
+
+            // Arrêt du jeu
+            gameTimer.stop();
+
+            // Affichage de victoire
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/GUI/youWin.png")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/GUI/youLose.png")));
+        }
+        else
+        {
+            restartGame();
+        }
+    }
 }
 
 void MainWindow::switchTurn(){
@@ -60,6 +118,7 @@ void MainWindow::switchTurn(){
 void MainWindow::initGame() {
     // Init Players
     players_.push_back(Player("Player 1" , 100 , 0 , true, 2));
+
     players_.push_back(Player("Player 2" , 100 , 0 , true, 2));
 
     // Init Score
@@ -69,12 +128,12 @@ void MainWindow::initGame() {
     ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(img2)));
 
     // Init Attacks
-    vector<QImage> animationSpritesLaser;
-    attacks_.push_back(Attack("Laser", 10, 1, animationSpritesLaser));
-    vector<QImage> animationSpritesLightning;
-    attacks_.push_back(Attack("Lightning", 20, 3, animationSpritesLightning));
-    vector<QImage> animationSpritesRocket;
-    attacks_.push_back(Attack("Rocket", 15, 2, animationSpritesRocket));
+    QPixmap animationSpritesLaser;
+    attacks_.push_back(Attack("Laser", 3, 1, animationSpritesLaser));
+    QPixmap animationSpritesLightning;
+    attacks_.push_back(Attack("Lightning", 5, 3, animationSpritesLightning));
+    QPixmap animationSpritesRocket;
+    attacks_.push_back(Attack("Rocket", 4, 2, animationSpritesRocket));
 
     // Init Background
     updateBackground();
@@ -82,6 +141,24 @@ void MainWindow::initGame() {
     // Select the first player and display it
     activePlayer_ = rand()%2;
     switchTurn();
+}
+
+void MainWindow::restartGame(){
+    waitKey(3);
+    players_[0].setPv(100);
+    players_[1].setPv(100);
+    ui->player1Lifebar->setValue(players_[0].getPv());
+    ui->player2Lifebar->setValue(players_[1].getPv());
+    ultimateCharge_ = 0;
+    ui->ultimateBarLabel->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Ultbar - " + QString::fromStdString(to_string(ultimateCharge_))+ ".png")));
+    ui->activePlayer2_timer->setPixmap(QPixmap());
+    ui->activePlayer1_timer->setPixmap(QPixmap());
+    QString img1 = ":/img/GUI/P1 - " + QString::fromStdString(to_string(players_[0].getScore())) + "pt.png";
+    ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(img1)));
+    QString img2 = ":/img/GUI/P2 - " + QString::fromStdString(to_string(players_[1].getScore())) + "pt.png";
+    ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(img2)));
+    animationTimer_.start();
+    attackTimer.start();
 }
 
 MainWindow::~MainWindow()
@@ -102,47 +179,148 @@ void MainWindow::updateBackground(){
 }
 
 void MainWindow::moinsFond(){
-    Mat currentPlayer (currentPic_, Rect(0 + 320*activePlayer_, 0, 320, 480));
-    Mat currentBG (background_, Rect(0 + 320*activePlayer_, 0, 320, 480));
-    imwrite( path_ + "currentPic.jpg", currentPlayer );
+    Mat currentPic;
+    flip(currentPic_,currentPic,1);
+    Mat currentPlayer (currentPic, Rect(0 + 320*!activePlayer_, 0, 320, 480));
+    Mat currentBG (background_, Rect(0 + 320*!activePlayer_, 0, 320, 480));
+    //imwrite( path_ + "currentPic.jpg", currentPlayer );
     cvtColor(currentPlayer,currentPlayer,COLOR_BGR2GRAY);
-    //subtract(currentBG,currentPlayer,skel_);
-    //threshold(skel_, skel_, 15, 255,THRESH_BINARY );
+    subtract(currentBG,currentPlayer,skel_);
+    /*threshold(skel_, skel_, 15, 255,THRESH_BINARY );
     Mat element = getStructuringElement(2,Size(7,7));
-    //morphologyEx( skel_, skel_, 0, element );
+    morphologyEx( skel_, skel_, 0, element );
     element = getStructuringElement(2,Size(15,15));
-    //morphologyEx( skel_, skel_, 1, element );
-    //remove_small_objects(skel_,10);
+    morphologyEx( skel_, skel_, 1, element );
+    remove_small_objects(skel_,10);
     //skel(skel_,skel_);
-    //imwrite( path_ + "skel_.jpg", skel_ );
+    //imwrite( path_ + "skel_.jpg", skel_ );*/
+
+
+    threshold(skel_, skel_, 25, 255, cv::THRESH_BINARY);
+    Mat skel(skel_.size(), CV_8UC1, cv::Scalar(0));
+    Mat temp;
+    Mat eroded;
+
+    Mat element = getStructuringElement(2,Size(18,18));
+    morphologyEx( skel_, skel_, 1, element );
+    element = getStructuringElement(2,Size(19,19));
+    morphologyEx( skel_, skel_, 0, element );
+
+    imshow("skel2",skel_);
+    thinning(skel_, skel_);
+    imshow("skel3",skel_);
     attack();
     switchTurn();
 }
 
 void MainWindow::attack(){
+    // Calcul des dégats et charges
     attacks_[currentAttack_].damage(&players_[!activePlayer_],ultimateCharge_>=10);
     if (ultimateCharge_ >= 10) ultimateCharge_ = 0;
     ultimateCharge_ += attacks_[currentAttack_].getUltCharge();
     if (ultimateCharge_ >= 10) ultimateCharge_ = 10;
-    // animation
+
+    // Animation
+    animationState_ = 0;
+
+    //Mise à jour des barres
     ui->ultimateBarLabel->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Ultbar - " + QString::fromStdString(to_string(ultimateCharge_))+ ".png")));
     ui->player1Lifebar->setValue(players_[0].getPv());
     ui->player2Lifebar->setValue(players_[1].getPv());
+
     // Pour des tests, a virer !
     currentAttack_ ++;
     if (currentAttack_ >=3) currentAttack_= 0;
 }
 
+void MainWindow::animateAttacks(){
+
+    if (currentAttack_ == 0) // Meteore
+    {
+        if (animationState_ == 1){
+            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu1"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu1")));
+        }
+        if (animationState_ == 2){
+            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu2"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu2")));
+        }
+        if (animationState_ == 3){
+            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu3"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu3")));
+        }
+        if (animationState_ == 4){
+            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu4"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu4")));
+        }
+        if (animationState_ == 5){
+            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu5"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu5")));
+        }
+        if (animationState_ == 6){
+            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap()) : ui->activePlayer2_timer->setPixmap(QPixmap());
+        }
+        if (animationState_ == 8){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule1"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule1")));
+        }
+        if (animationState_ == 9){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule2"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule2")));
+        }
+        if (animationState_ == 10){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule3"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule3")));
+        }
+        if (animationState_ == 11){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule4"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule4")));
+        }
+        if (animationState_ == 12){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule5"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule5")));
+        }
+        if (animationState_ == 13){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap()) : ui->activePlayer1_timer->setPixmap(QPixmap());
+        }
+    }
+
+    if (currentAttack_ == 1) // Lightning
+    {
+        if (animationState_ == 1){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4")));
+        }
+        if (animationState_ == 2){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5")));
+        }
+        if (animationState_ == 3){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6")));
+        }
+        if (animationState_ == 4){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4")));
+        }
+        if (animationState_ == 5){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5")));
+        }
+        if (animationState_ == 6){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6")));
+        }
+        if (animationState_ == 7){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4")));
+        }
+        if (animationState_ == 8){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5")));
+        }
+        if (animationState_ == 9){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6")));
+        }
+        if (animationState_ == 10){
+            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap()) : ui->activePlayer1_timer->setPixmap(QPixmap());
+        }
+    }
+
+}
+
 void MainWindow::timerForAttack(){
     if (!activePlayer_ && time_ >= 1){
         if (time_ == 1) {
-            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/trois.jpg")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/trois.png")));
         }
         else if (time_ == 2) {
-            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/deux.jpg")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/deux.png")));
         }
         else if (time_ == 3) {
-            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/un.jpg")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/un.png")));
         }
         else {
             ui->activePlayer1_timer->setPixmap(QPixmap());
@@ -151,13 +329,13 @@ void MainWindow::timerForAttack(){
     }
     else if (time_ >= 1){
         if (time_ == 1) {
-            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/trois.jpg")));
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/trois.png")));
         }
         else if (time_ == 2) {
-            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/deux.jpg")));
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/deux.png")));
         }
         else if (time_ == 3) {
-            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/un.jpg")));
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/un.png")));
         }
         else {
             ui->activePlayer2_timer->setPixmap(QPixmap());
@@ -189,132 +367,107 @@ void MainWindow::remove_small_objects( cv::Mat& im, double size )
         }
 }
 
-void GetLutSkel(Mat& Lut)
+void MainWindow::thinningIteration(cv::Mat& img, int iter)
 {
-    Lut=Mat(8,512,CV_16UC1);
-    static int lut1[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,1,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,1,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-    static int lut2[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-    static int lut3[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-    static int lut4[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-    static int lut5[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1};
-    static int lut6[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-    static int lut7[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-    static int lut8[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1};
+    CV_Assert(img.channels() == 1);
+    CV_Assert(img.depth() != sizeof(uchar));
+    CV_Assert(img.rows > 3 && img.cols > 3);
 
-    for (int i=0;i<512;i++)
-    {
-        Lut.at<unsigned short>(0,i)=lut1[i];
-        Lut.at<unsigned short>(1,i)=lut2[i];
-        Lut.at<unsigned short>(2,i)=lut3[i];
-        Lut.at<unsigned short>(3,i)=lut4[i];
-        Lut.at<unsigned short>(4,i)=lut5[i];
-        Lut.at<unsigned short>(5,i)=lut6[i];
-        Lut.at<unsigned short>(6,i)=lut7[i];
-        Lut.at<unsigned short>(7,i)=lut8[i];
+    cv::Mat marker = cv::Mat::zeros(img.size(), CV_8UC1);
+
+    int nRows = img.rows;
+    int nCols = img.cols;
+
+    if (img.isContinuous()) {
+        nCols *= nRows;
+        nRows = 1;
     }
-}
 
-//-----------------------------------------------------------------------------------------------------
-// http://matlab.exponenta.ru/imageprocess/book3/13/applylut.php
-//-----------------------------------------------------------------------------------------------------
-void applylut_1(Mat &src,Mat &dst)
-{
-    static int lut_endpoints[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,1,1,1,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,1,1,1,0,1,1,1,1,0};
+    int x, y;
+    uchar *pAbove;
+    uchar *pCurr;
+    uchar *pBelow;
+    uchar *nw, *no, *ne;    // north (pAbove)
+    uchar *we, *me, *ea;
+    uchar *sw, *so, *se;    // south (pBelow)
 
-    Mat k(3,3,CV_16UC1);
+    uchar *pDst;
 
-    k.at<unsigned short>(0,0)=256;
-    k.at<unsigned short>(1,0)=128;
-    k.at<unsigned short>(2,0)=64;
-    k.at<unsigned short>(0,1)=32;
-    k.at<unsigned short>(1,1)=16;
-    k.at<unsigned short>(2,1)=8;
-    k.at<unsigned short>(0,2)=4;
-    k.at<unsigned short>(1,2)=2;
-    k.at<unsigned short>(2,2)=1;
+    // initialize row pointers
+    pAbove = NULL;
+    pCurr  = img.ptr<uchar>(0);
+    pBelow = img.ptr<uchar>(1);
 
-    dst=src.clone();
+    for (y = 1; y < img.rows-1; ++y) {
+        // shift the rows up by one
+        pAbove = pCurr;
+        pCurr  = pBelow;
+        pBelow = img.ptr<uchar>(y+1);
 
-        filter2D(dst,dst,CV_16UC1,k);
-        for(int i=0;i<dst.rows;i++)
-        {
-            for (int j=1;j<dst.cols;j++)
-            {
-                dst.at<unsigned short>(i,j)=lut_endpoints[dst.at<unsigned short>(i,j)];
-            }
-        }
+        pDst = marker.ptr<uchar>(y);
 
-    dst.convertTo(dst,CV_8UC1);
-}
+        // initialize col pointers
+        no = &(pAbove[0]);
+        ne = &(pAbove[1]);
+        me = &(pCurr[0]);
+        ea = &(pCurr[1]);
+        so = &(pBelow[0]);
+        se = &(pBelow[1]);
 
-//-----------------------------------------------------------------------------------------------------
-// http://matlab.exponenta.ru/imageprocess/book3/13/applylut.php
-//-----------------------------------------------------------------------------------------------------
-void applylut_8(Mat &src,Mat &dst,Mat& lut)
-{
-    Mat k(3,3,CV_16UC1);
+        for (x = 1; x < img.cols-1; ++x) {
+            // shift col pointers left by one (scan left to right)
+            nw = no;
+            no = ne;
+            ne = &(pAbove[x+1]);
+            we = me;
+            me = ea;
+            ea = &(pCurr[x+1]);
+            sw = so;
+            so = se;
+            se = &(pBelow[x+1]);
 
-    k.at<unsigned short>(0,0)=256;
-    k.at<unsigned short>(1,0)=128;
-    k.at<unsigned short>(2,0)=64;
-    k.at<unsigned short>(0,1)=32;
-    k.at<unsigned short>(1,1)=16;
-    k.at<unsigned short>(2,1)=8;
-    k.at<unsigned short>(0,2)=4;
-    k.at<unsigned short>(1,2)=2;
-    k.at<unsigned short>(2,2)=1;
+            int A  = (*no == 0 && *ne == 1) + (*ne == 0 && *ea == 1) +
+                     (*ea == 0 && *se == 1) + (*se == 0 && *so == 1) +
+                     (*so == 0 && *sw == 1) + (*sw == 0 && *we == 1) +
+                     (*we == 0 && *nw == 1) + (*nw == 0 && *no == 1);
+            int B  = *no + *ne + *ea + *se + *so + *sw + *we + *nw;
+            int m1 = iter == 0 ? (*no * *ea * *so) : (*no * *ea * *we);
+            int m2 = iter == 0 ? (*ea * *so * *we) : (*no * *so * *we);
 
-    dst=src.clone();
-
-    for(int I=7;I>=0;I--)
-    {
-        filter2D(dst,dst,CV_16UC1,k);
-        for(int i=0;i<dst.rows;i++)
-        {
-            for (int j=1;j<dst.cols;j++)
-            {
-                dst.at<unsigned short>(i,j)=lut.at<unsigned short>(I,dst.at<unsigned short>(i,j));
-            }
+            if (A == 1 && (B >= 2 && B <= 6) && m1 == 0 && m2 == 0)
+                pDst[x] = 1;
         }
     }
-    dst.convertTo(dst,CV_8UC1);
-}
-//-----------------------------------------------------------------------------------------------------
-// LUT Skeletonizer
-//-----------------------------------------------------------------------------------------------------
-void MainWindow::skel(Mat &src,Mat &dst)
-{
-    Mat lut;
-    GetLutSkel(lut);
-    dst=src.clone();
-    // Преобразуем в последовательномть 0 и 1.
-    cv::threshold(dst,dst,0,1,THRESH_BINARY);
 
-    int last_pc=INT_MAX;
-    for(int pc=countNonZero(dst);pc<last_pc;pc=countNonZero(dst))
-    {
-        last_pc=pc;
-        applylut_8(dst,dst,lut);
+    img &= ~marker;
+}
+
+/**
+ * Function for thinning the given binary image
+ *
+ * Parameters:
+ * 		src  The source image, binary with range = [0,255]
+ * 		dst  The destination image
+ */
+void MainWindow::thinning(const cv::Mat& src, cv::Mat& dst)
+{
+    dst = src.clone();
+    dst /= 255;         // convert to binary image
+
+    cv::Mat prev = cv::Mat::zeros(dst.size(), CV_8UC1);
+    cv::Mat diff;
+
+    do {
+        thinningIteration(dst, 0);
+        thinningIteration(dst, 1);
+        cv::absdiff(dst, prev, diff);
+        dst.copyTo(prev);
     }
+    while (cv::countNonZero(diff) > 0);
 
-    // Чтобы было видно на экране
-    dst=dst*255;
+    dst *= 255;
 }
 
-//-----------------------------------------------------------------------------------------------------
-// LUT endpoints
-//-----------------------------------------------------------------------------------------------------
-void endp(Mat &src,Mat &dst)
-{
-    dst=src.clone();
-    // Преобразуем в последовательномть 0 и 1.
-    cv::threshold(dst,dst,0,1,THRESH_BINARY);
-
-    applylut_1(dst,dst);
-
-    // Чтобы было видно на экране
-    dst=dst*255;
-}
 
 void MainWindow::on_updateBGButton_clicked()
 {
