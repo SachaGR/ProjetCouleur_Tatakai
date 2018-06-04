@@ -145,12 +145,6 @@ void MainWindow::initGame() {
 
     gameTimer.start();
     animationTimer_.start();
-
-    // Deux tableaux différents seront considérés pour que la position puisse
-    // être prise dans les deux configurations possibles
-    vector<float> eclair{95.102965265535, 448.482922494281, 224.583064777916, 171.473394437738, 246.269944302787,448.482922494281, -3.91385117102071, -175.463520467813, -171.473394437738, -175.662644102559};
-    vector<float> eclair_bis{218.849733728635, 450.482846340409, 2.852105258346991e+02, 3.93130424201746};
-    vector<float> fusee{451, 179.958675811976, 276.741174271822, 0, -179.958675811976, 271.952794548342};
 }
 
 void MainWindow::restartGame(){
@@ -214,9 +208,7 @@ void MainWindow::moinsFond(){
     thinning(skel_, skel_);
 
     skel_=Mat(skel_, Rect(5, 5, 310, 470));
-    qDebug() << skel_.size().height;
-    qDebug() << skel_.size().width;
-    imshow("displayazea",skel_);
+    imshow("Display Skel",skel_);
     Mat color_dst;
     cvtColor(skel_,color_dst,CV_GRAY2BGR);
     vector<Vec4i> lines;
@@ -224,21 +216,170 @@ void MainWindow::moinsFond(){
     sort(lines.begin(),lines.end(),[&](Vec4i i,Vec4i j) { return sqrt(pow(i[0]-i[2],2)+pow(i[1]-i[3],2)) > sqrt(pow(j[0]-j[2],2)+pow(j[1]-j[3],2));});
     // [DEV] Affichage lines Hough
     for (size_t i = 0;i<lines.size(); i++){
-        //qDebug() << sqrt(pow(lines[i][0]-lines[i][2],2)+pow(lines[i][1]-lines[i][3],2));
-        line(color_dst,Point(lines[i][0],lines[i][1]),Point(lines[i][2],lines[i][3]),Scalar(0,0,255),3,8);
+       line(color_dst,Point(lines[i][0],lines[i][1]),Point(lines[i][2],lines[i][3]),Scalar(0,0,255),3,8);
     }
-    /*
     vector<Vec4i> linesSelected;
-    for (int i=0;i<4;i++){
-        linesSelected[i]=lines[i];
+    int mini = min((size_t)4,lines.size());
+    for (size_t i=0;i<mini;i++){
+        linesSelected.push_back(lines[i]);
+        dataSelected_.push_back(getDatas(lines[i][0],lines[i][1],lines[i][2],lines[i][3]));
         line(color_dst,Point(lines[i][0],lines[i][1]),Point(lines[i][2],lines[i][3]),Scalar(255,0,0),3,8);
     }
-    */
     imshow("display",color_dst);
     attack();
+    int abeaz = verdict();
+    qDebug() << abeaz;
     switchTurn();
 }
 
+vector<float> MainWindow::getDatas(int x1,int y1,int x2,int y2){
+    if (x1 == x2) x2 += 0.1*x2;
+    float a=(y2-y1)/(x2-x1);
+    if (a == 0) a = 0.01;
+    float a2=-1/a;
+    float b=y2-a*x2;
+    float x=b/(a2-a);
+    float y=a2*x;
+    vector<float> datas{x,y};
+    return datas;
+}
+
+int MainWindow::verdict(){
+    //fonction qui retourne verdict
+    int verdict = 6;
+    // Recherche pour chaque droite de la plus probable pour chaque attaque de référence
+    // Deux tableaux différents seront considérés pour que la position puisse
+    // être prise dans les deux configurations possibles
+    vector<float> eclair{95.102965265535, 448.482922494281, 224.583064777916, 171.473394437738, 246.269944302787,448.482922494281, -3.91385117102071, -175.463520467813, -171.473394437738, -175.662644102559};
+    vector<float> eclair_bis{218.849733728635, 450.482846340409, 2.852105258346991e+02, 3.93130424201746};
+    vector<float> fusee{451, 179.958675811976, 276.741174271822, 0, -179.958675811976, 271.952794548342};
+
+    /* Première étape de classification à partir du nombre de pixels blancs
+       associés au squelette sur les parties droite et gauche de l'image acquise
+      (car identique quelque soit la taille de la personne) */
+
+    // Calcul du nombre de pixels blancs sur la partie gauche (hors centre) de l'image
+
+    int nb_pixels_G = 0;
+    int m = skel_.size().height;
+    int n = skel_.size().width;
+    for(int i = 0; i< floor(3*m/4); i++){
+        for (int j = 0 ; j < floor(n/2); j++){
+            if(skel_.at<int>(i,j) > 0){
+                nb_pixels_G = nb_pixels_G + 1;
+            }
+        }
+    }
+
+    // Calcul du nombre de pixels blancs sur la partie droite (hors centre) de l'image
+
+    int nb_pixels_D = 0;
+    for(int i = 0 ; i < floor(3*m/4) ; i++){
+        for(int j = floor(n/2); j< n; j++){
+            if(skel_.at<int>(i,j) > 0){
+                nb_pixels_D = nb_pixels_D + 1;
+            }
+        }
+    }
+
+    // Calcul du nombre de pixels blancs sur la partie centrale
+
+    int nb_pixels_centre = 0;
+    for(int i = 0 ; i < floor(3*m/4); i++){
+        for(int j = floor(2.5*n/6)-1; j < floor(3.5*n/6); j++){
+            if(skel_.at<int>(i,j) > 0){
+                nb_pixels_centre = nb_pixels_centre + 1;
+            }
+        }
+    }
+
+    int rapport_pixels = nb_pixels_centre/(nb_pixels_G + nb_pixels_D);
+
+    if ((nb_pixels_G < 0.3 * nb_pixels_D) || (nb_pixels_D < 0.3 * nb_pixels_G)){
+        // Seule l'attaque jet est possible
+        verdict = 4;
+    }
+    else if (rapport_pixels > 0.8){
+        verdict = 5;
+    }
+    else if ((nb_pixels_G > 0.9 * nb_pixels_D) || (nb_pixels_D > 0.9 * nb_pixels_G)){
+        // Les attaques fusée, éclair et météore sont possibles
+        m = dataSelected_.size();
+
+        // Dans le cas de l'attaque éclair prise selon sa première configuration
+        int m_ref = eclair.size()/2;
+        vector<float> delta_eclair(m);
+        int somme_delta_eclair = 0;
+
+        for(int i = 0; i < m ; i++){
+            delta_eclair[i] = sqrt(pow(dataSelected_[i][0]-eclair[0],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2],2));
+        }
+
+        for(int i = 0 ; i < m ; i++){
+            for(int j= 1; j < m_ref; j++){
+                if( sqrt(pow(dataSelected_[i][0]-eclair[j],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2+j],2)) < delta_eclair[i]) {
+                    delta_eclair[i] = sqrt(pow(dataSelected_[i][0]-eclair[j],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2+j],2));
+                }
+            }
+            somme_delta_eclair = somme_delta_eclair + delta_eclair[i];
+        }
+
+        // Dans le cas de l'attaque éclair prise selon sa deuxième configuration
+        m_ref = eclair_bis.size()/2;
+        vector<float> delta_eclair_bis(m);
+        int somme_delta_eclair_bis = 0;
+
+        for(int i = 0; i < m; i++){
+            delta_eclair_bis[i] = sqrt(pow(dataSelected_[i][0]-eclair_bis[0],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2],2));
+        }
+
+        for(int i = 0 ; i < m; i++){
+            for(int j= 1 ; j < m_ref; j++){
+                if ( sqrt(pow(dataSelected_[i][0]-eclair_bis[j],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2+j],2)) < delta_eclair_bis[i]) {
+                    delta_eclair_bis[i] = sqrt(pow(dataSelected_[i][0]-eclair_bis[j],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2+j],2));
+                }
+            }
+            somme_delta_eclair_bis = somme_delta_eclair_bis + delta_eclair_bis[i];
+        }
+
+        // Dans le cas de l'attaque fusée
+
+        m_ref = fusee.size()/2;
+        vector<float> delta_fusee(m);
+        int somme_delta_fusee = 0;
+
+        for(int i = 0; i < m; i++){
+            delta_fusee[i] = sqrt(pow(dataSelected_[i][0]-fusee[0],2)+pow(dataSelected_[i][1]-fusee[fusee.size()/2],2));
+        }
+
+        for(int i = 0; i < m; i++){
+            for(int j= 1; j < m_ref; j++){
+                if( sqrt(pow(dataSelected_[i][0]-fusee[j],2)+pow(dataSelected_[i][1]-fusee[fusee.size()/2+j],2)) < delta_fusee[i]) {
+                    delta_fusee[i] = sqrt(pow(dataSelected_[i][0]-fusee[j],2)+pow(dataSelected_[i][1]-fusee[fusee.size()/2+j],2));
+                }
+            }
+            somme_delta_fusee = somme_delta_fusee + delta_fusee[i];
+        }
+
+        // On détermine laquelle des sommes relatives à chaque attaque est la plus petite afin d'affecter la bonne valeur à la variable verdict
+
+        if ((somme_delta_eclair > somme_delta_fusee) && (somme_delta_eclair_bis > somme_delta_fusee)){
+            verdict = 3;
+        }
+        else{
+            verdict = 1;
+        }
+
+    }
+    else{
+        /*Le joueur ne s'est pas suffisamment bien positionné et il se voit
+          donc affecter une attaue de puissance moindre, à savoir l'attaque
+          météore.*/
+        verdict = 2;
+    }
+    dataSelected_.clear();
+    return verdict;
+}
 
 void MainWindow::attack(){
     // Calcul des dégats et charges

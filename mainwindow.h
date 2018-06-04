@@ -43,6 +43,8 @@ public:
     void restartGame();
     void thinningIteration(cv::Mat& img, int iter);
     void thinning(const cv::Mat& src, cv::Mat& dst);
+    vector<float> getDatas(int x1,int y1,int x2,int y2);
+    int verdict();
 
     //Getters & Setters
     void setUltimateCharge(int ultimateCharge) {ultimateCharge_ = ultimateCharge;}
@@ -57,6 +59,7 @@ private:
     int ultimateCharge_ = 0;
     vector<Player> players_;
     vector<Attack> attacks_;
+    vector<vector<float>> dataSelected_;
     int activePlayer_;
     int currentAttack_ = 6;
     int animationState_ = 0;
