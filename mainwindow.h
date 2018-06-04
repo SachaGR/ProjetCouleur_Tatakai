@@ -9,6 +9,7 @@
 
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/imgproc/types_c.h"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/opencv.hpp"
 #include "opencv2/objdetect/objdetect.hpp"
@@ -75,7 +76,7 @@ private slots:
     void on_updateBGButton_clicked();
     void on_updatePlayer1PicButton_clicked();
     void on_updatePlayer2PicButton_clicked();
-    void on_moinsFond_clicked();
+    void on_playPauseButton_clicked();
 };
 
 #endif // MAINWINDOW_H

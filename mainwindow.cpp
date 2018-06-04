@@ -16,30 +16,24 @@ MainWindow::MainWindow(QWidget *parent) :
         updateGame();
     });
     gameTimer.setInterval(10);
-    gameTimer.start();
-
-    connect(&skelTimer,  &QTimer::timeout, [&] {
-        //moinsFond();
-    });
-    skelTimer.setInterval(30000);
-    skelTimer.start();
 
     connect(&attackTimer,  &QTimer::timeout, [&] {
         timerForAttack();
     });
     attackTimer.setInterval(1000);
-    attackTimer.start();
 
     connect(&animationTimer_,  &QTimer::timeout, [&] {
         animateAttacks();
         animationState_ ++;
     });
     animationTimer_.setInterval(100);
-    animationTimer_.start();
 
     path_ = "C:/Users/Dorian/Desktop/Cours/Semestre 8/Couleur/Projet Couleur/Photos/";
     camera_ = 0;
     initGame();
+
+    // Init Background
+    updateBackground();
 }
 
 void MainWindow::updateGame(){
@@ -49,9 +43,9 @@ void MainWindow::updateGame(){
 
     if (players_[0].getPv() <= 0)
     {
+        //Attendre un instant
         players_[0].setPv(0);
         ui->player1Lifebar->setValue(players_[0].getPv());
-        animationTimer_.stop();
         attackTimer.stop();
         players_[1].setScore(players_[1].getScore() + 1);
         if (players_[1].getScore() >= 2)
@@ -61,11 +55,12 @@ void MainWindow::updateGame(){
             ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(img2)));
 
             // Arrêt du jeu
+            ui->playPauseButton->setText("Replay ?");
             gameTimer.stop();
 
             // Affichage de victoire
-            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/GUI/youWin.png")));
-            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/GUI/youLose.png")));
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/youWin.png")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/youLose.png")));
         }
         else
         {
@@ -74,9 +69,9 @@ void MainWindow::updateGame(){
     }
     if (players_[1].getPv() <= 0)
     {
+        // Attendre un instant
         players_[1].setPv(0);
         ui->player2Lifebar->setValue(players_[1].getPv());
-        animationTimer_.stop();
         attackTimer.stop();
         players_[0].setScore(players_[0].getScore() + 1);
         if (players_[0].getScore() >= 2)
@@ -86,11 +81,12 @@ void MainWindow::updateGame(){
             ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(img1)));
 
             // Arrêt du jeu
+            ui->playPauseButton->setText("Replay ?");
             gameTimer.stop();
 
             // Affichage de victoire
-            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/GUI/youWin.png")));
-            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/GUI/youLose.png")));
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/youWin.png")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/youLose.png")));
         }
         else
         {
@@ -118,8 +114,9 @@ void MainWindow::switchTurn(){
 void MainWindow::initGame() {
     // Init Players
     players_.push_back(Player("Player 1" , 100 , 0 , true, 2));
-
     players_.push_back(Player("Player 2" , 100 , 0 , true, 2));
+    ui->player1Lifebar->setValue(players_[0].getPv());
+    ui->player2Lifebar->setValue(players_[1].getPv());
 
     // Init Score
     QString img1 = ":/img/GUI/P1 - " + QString::fromStdString(to_string(players_[0].getScore())) + "pt.png";
@@ -127,24 +124,36 @@ void MainWindow::initGame() {
     QString img2 = ":/img/GUI/P2 - " + QString::fromStdString(to_string(players_[1].getScore())) + "pt.png";
     ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(img2)));
 
+
+    // Ulti and display of players
+    ultimateCharge_ = 0;
+    ui->ultimateBarLabel->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Ultbar - " + QString::fromStdString(to_string(ultimateCharge_))+ ".png")));
+    ui->activePlayer2_timer->setPixmap(QPixmap());
+    ui->activePlayer1_timer->setPixmap(QPixmap());
+
     // Init Attacks
     QPixmap animationSpritesLaser;
-    attacks_.push_back(Attack("Laser", 3, 1, animationSpritesLaser));
+    attacks_.push_back(Attack("Laser", 70, 1, animationSpritesLaser));
     QPixmap animationSpritesLightning;
-    attacks_.push_back(Attack("Lightning", 5, 3, animationSpritesLightning));
+    attacks_.push_back(Attack("Lightning", 80, 3, animationSpritesLightning));
     QPixmap animationSpritesRocket;
-    attacks_.push_back(Attack("Rocket", 4, 2, animationSpritesRocket));
-
-    // Init Background
-    updateBackground();
+    attacks_.push_back(Attack("Rocket", 75, 2, animationSpritesRocket));
 
     // Select the first player and display it
     activePlayer_ = rand()%2;
     switchTurn();
+
+    gameTimer.start();
+    animationTimer_.start();
+
+    // Deux tableaux différents seront considérés pour que la position puisse
+    // être prise dans les deux configurations possibles
+    vector<float> eclair{95.102965265535, 448.482922494281, 224.583064777916, 171.473394437738, 246.269944302787,448.482922494281, -3.91385117102071, -175.463520467813, -171.473394437738, -175.662644102559};
+    vector<float> eclair_bis{218.849733728635, 450.482846340409, 2.852105258346991e+02, 3.93130424201746};
+    vector<float> fusee{451, 179.958675811976, 276.741174271822, 0, -179.958675811976, 271.952794548342};
 }
 
 void MainWindow::restartGame(){
-    waitKey(3);
     players_[0].setPv(100);
     players_[1].setPv(100);
     ui->player1Lifebar->setValue(players_[0].getPv());
@@ -157,7 +166,6 @@ void MainWindow::restartGame(){
     ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(img1)));
     QString img2 = ":/img/GUI/P2 - " + QString::fromStdString(to_string(players_[1].getScore())) + "pt.png";
     ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(img2)));
-    animationTimer_.start();
     attackTimer.start();
 }
 
@@ -197,21 +205,40 @@ void MainWindow::moinsFond(){
 
 
     threshold(skel_, skel_, 25, 255, cv::THRESH_BINARY);
-    Mat skel(skel_.size(), CV_8UC1, cv::Scalar(0));
-    Mat temp;
-    Mat eroded;
 
     Mat element = getStructuringElement(2,Size(18,18));
     morphologyEx( skel_, skel_, 1, element );
     element = getStructuringElement(2,Size(19,19));
     morphologyEx( skel_, skel_, 0, element );
 
-    imshow("skel2",skel_);
     thinning(skel_, skel_);
-    imshow("skel3",skel_);
+
+    skel_=Mat(skel_, Rect(5, 5, 310, 470));
+    qDebug() << skel_.size().height;
+    qDebug() << skel_.size().width;
+    imshow("displayazea",skel_);
+    Mat color_dst;
+    cvtColor(skel_,color_dst,CV_GRAY2BGR);
+    vector<Vec4i> lines;
+    HoughLinesP(skel_,lines,0.5, 0.5*CV_PI/180,20, 30, 30);
+    sort(lines.begin(),lines.end(),[&](Vec4i i,Vec4i j) { return sqrt(pow(i[0]-i[2],2)+pow(i[1]-i[3],2)) > sqrt(pow(j[0]-j[2],2)+pow(j[1]-j[3],2));});
+    // [DEV] Affichage lines Hough
+    for (size_t i = 0;i<lines.size(); i++){
+        //qDebug() << sqrt(pow(lines[i][0]-lines[i][2],2)+pow(lines[i][1]-lines[i][3],2));
+        line(color_dst,Point(lines[i][0],lines[i][1]),Point(lines[i][2],lines[i][3]),Scalar(0,0,255),3,8);
+    }
+    /*
+    vector<Vec4i> linesSelected;
+    for (int i=0;i<4;i++){
+        linesSelected[i]=lines[i];
+        line(color_dst,Point(lines[i][0],lines[i][1]),Point(lines[i][2],lines[i][3]),Scalar(255,0,0),3,8);
+    }
+    */
+    imshow("display",color_dst);
     attack();
     switchTurn();
 }
+
 
 void MainWindow::attack(){
     // Calcul des dégats et charges
@@ -492,8 +519,21 @@ void MainWindow::on_updatePlayer2PicButton_clicked()
     ui->player2Label->setPixmap(QPixmap::fromImage(QImage(tmp.data, tmp.cols, tmp.rows,tmp.step, QImage::Format_RGB888)));
 }
 
-void MainWindow::on_moinsFond_clicked()
+void MainWindow::on_playPauseButton_clicked()
 {
-    moinsFond();
-    switchTurn();
+    if (ui->playPauseButton->text() == "Replay ?"){
+        players_.clear();
+        attacks_.clear();
+        initGame();
+        attackTimer.start();
+        ui->playPauseButton->setText("Press to pause !");
+    }
+    else if (attackTimer.isActive()) {
+        attackTimer.stop();
+        ui->playPauseButton->setText("Press to play !");
+    }
+    else {
+        attackTimer.start();
+        ui->playPauseButton->setText("Press to pause !");
+    }
 }

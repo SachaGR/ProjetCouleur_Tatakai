@@ -236,9 +236,9 @@
       <widget class="Line" name="lineP1">
        <property name="geometry">
         <rect>
-         <x>321</x>
+         <x>121</x>
          <y>161</y>
-         <width>3</width>
+         <width>391</width>
          <height>427</height>
         </rect>
        </property>
@@ -259,17 +259,17 @@
         <enum>Qt::Vertical</enum>
        </property>
       </widget>
-      <widget class="QPushButton" name="moinsFond">
+      <widget class="QPushButton" name="playPauseButton">
        <property name="geometry">
         <rect>
-         <x>750</x>
-         <y>680</y>
-         <width>93</width>
+         <x>470</x>
+         <y>630</y>
+         <width>111</width>
          <height>28</height>
         </rect>
        </property>
        <property name="text">
-        <string>MoinsFond-tmp</string>
+        <string>Press to play !</string>
        </property>
       </widget>
       <widget class="QLabel" name="activePlayer1">
@@ -358,9 +358,9 @@
       <widget class="QProgressBar" name="player2Lifebar">
        <property name="geometry">
         <rect>
-         <x>580</x>
+         <x>570</x>
          <y>40</y>
-         <width>311</width>
+         <width>321</width>
          <height>31</height>
         </rect>
        </property>
@@ -393,7 +393,7 @@
       <zorder>seperatingLine</zorder>
       <zorder>lineP1</zorder>
       <zorder>lineP2</zorder>
-      <zorder>moinsFond</zorder>
+      <zorder>playPauseButton</zorder>
       <zorder>activePlayer1</zorder>
       <zorder>activePlayer2</zorder>
       <zorder>activePlayer1_timer</zorder>
