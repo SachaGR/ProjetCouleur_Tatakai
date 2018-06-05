@@ -39,6 +39,7 @@ MainWindow::MainWindow(QWidget *parent) :
 void MainWindow::updateGame(){
     camera_ >> currentPic_;
     flip(currentPic_,currentPic_,1);
+    cvtColor(currentPic_, currentPic_, CV_BGR2RGB);
     ui->cameraLabel->setPixmap(QPixmap::fromImage(QImage(currentPic_.data, currentPic_.cols, currentPic_.rows,currentPic_.step, QImage::Format_RGB888)));
 
     if (players_[0].getPv() <= 0)
@@ -108,7 +109,7 @@ void MainWindow::switchTurn(){
             ui->activePlayer2->setStyleSheet("background-color:rgba(116, 116, 116, 220)");
             ui->activePlayer1->setStyleSheet("");
     }
-    time_ = -2;
+    time_ = -4;
 }
 
 void MainWindow::initGame() {
@@ -127,7 +128,7 @@ void MainWindow::initGame() {
 
     // Ulti and display of players
     ultimateCharge_ = 0;
-    ui->ultimateBarLabel->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Ultbar - " + QString::fromStdString(to_string(ultimateCharge_))+ ".png")));
+    ui->ultProgressBar->setValue(ultimateCharge_);
     ui->activePlayer2_timer->setPixmap(QPixmap());
     ui->activePlayer1_timer->setPixmap(QPixmap());
 
@@ -153,8 +154,7 @@ void MainWindow::restartGame(){
     ui->player1Lifebar->setValue(players_[0].getPv());
     ui->player2Lifebar->setValue(players_[1].getPv());
     ultimateCharge_ = 0;
-    ui->ultimateBarLabel->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Ultbar - " + QString::fromStdString(to_string(ultimateCharge_))+ ".png")));
-    ui->activePlayer2_timer->setPixmap(QPixmap());
+    ui->ultProgressBar->setValue(ultimateCharge_);
     ui->activePlayer1_timer->setPixmap(QPixmap());
     QString img1 = ":/img/GUI/P1 - " + QString::fromStdString(to_string(players_[0].getScore())) + "pt.png";
     ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(img1)));
@@ -208,7 +208,6 @@ void MainWindow::moinsFond(){
     thinning(skel_, skel_);
 
     skel_=Mat(skel_, Rect(5, 5, 310, 470));
-    imshow("Display Skel",skel_);
     Mat color_dst;
     cvtColor(skel_,color_dst,CV_GRAY2BGR);
     vector<Vec4i> lines;
@@ -225,10 +224,15 @@ void MainWindow::moinsFond(){
         dataSelected_.push_back(getDatas(lines[i][0],lines[i][1],lines[i][2],lines[i][3]));
         line(color_dst,Point(lines[i][0],lines[i][1]),Point(lines[i][2],lines[i][3]),Scalar(255,0,0),3,8);
     }
+    int i = 0;
+    while (i < dataSelected_.size()){
+        if (dataSelected_[i][0] > 4*dataSelected_[i][1]) dataSelected_.erase(dataSelected_.begin()+i);
+        else i++;
+    }
     imshow("display",color_dst);
     attack();
-    int abeaz = verdict();
-    qDebug() << abeaz;
+    currentAttack_ = verdict();
+    qDebug() << "Verdict " << currentAttack_;
     switchTurn();
 }
 
@@ -250,133 +254,108 @@ int MainWindow::verdict(){
     // Recherche pour chaque droite de la plus probable pour chaque attaque de référence
     // Deux tableaux différents seront considérés pour que la position puisse
     // être prise dans les deux configurations possibles
-    vector<float> eclair{95.102965265535, 448.482922494281, 224.583064777916, 171.473394437738, 246.269944302787,448.482922494281, -3.91385117102071, -175.463520467813, -171.473394437738, -175.662644102559};
+    /*vector<float> eclair{95.102965265535, 448.482922494281, 224.583064777916, 171.473394437738, 246.269944302787,448.482922494281, -3.91385117102071, -175.463520467813, -171.473394437738, -175.662644102559};
     vector<float> eclair_bis{218.849733728635, 450.482846340409, 2.852105258346991e+02, 3.93130424201746};
-    vector<float> fusee{451, 179.958675811976, 276.741174271822, 0, -179.958675811976, 271.952794548342};
-
+    vector<float> meteor{451, 179.958675811976, 276.741174271822, 0, -179.958675811976, 271.952794548342};
+    vector<float> pingouin{0,477,224,0};*/
+    /*vector<float> eclair{95, 224, 171, 246,448, -175, -171, -175};
+    vector<float> eclair_bis{218, 285};
+    vector<float> meteor{179, 276, -179, 271};
+    vector<float> pingouin{0,224};*/
+    vector<float> eclair{-70, 70};
+    vector<float> eclair_bis{250, 250};
+    vector<float> meteor{250, -70, 250, 70};
+    vector<float> pingouin{-3,300};
     /* Première étape de classification à partir du nombre de pixels blancs
        associés au squelette sur les parties droite et gauche de l'image acquise
       (car identique quelque soit la taille de la personne) */
+    qDebug() << dataSelected_;
+    // Les attaques pingouin, éclair et météore sont possibles
+    int m = dataSelected_.size();
+    // Dans le cas de l'attaque éclair prise selon sa première configuration
+    int m_ref = eclair.size()/2;
+    vector<float> delta_eclair(m);
+    int somme_delta_eclair = 0;
 
-    // Calcul du nombre de pixels blancs sur la partie gauche (hors centre) de l'image
+    for(int i = 0; i < m ; i++){
+        delta_eclair[i] = sqrt(pow(dataSelected_[i][0]-eclair[0],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2],2));
+    }
 
-    int nb_pixels_G = 0;
-    int m = skel_.size().height;
-    int n = skel_.size().width;
-    for(int i = 0; i< floor(3*m/4); i++){
-        for (int j = 0 ; j < floor(n/2); j++){
-            if(skel_.at<int>(i,j) > 0){
-                nb_pixels_G = nb_pixels_G + 1;
+    for(int i = 0 ; i < m ; i++){
+        for(int j= 1; j < m_ref; j++){
+            if( sqrt(pow(dataSelected_[i][0]-eclair[j],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2+j],2)) < delta_eclair[i]) {
+                delta_eclair[i] = sqrt(pow(dataSelected_[i][0]-eclair[j],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2+j],2));
             }
         }
+        somme_delta_eclair = somme_delta_eclair + delta_eclair[i];
     }
 
-    // Calcul du nombre de pixels blancs sur la partie droite (hors centre) de l'image
+    // Dans le cas de l'attaque éclair prise selon sa deuxième configuration
+    m_ref = eclair_bis.size()/2;
+    vector<float> delta_eclair_bis(m);
+    int somme_delta_eclair_bis = 0;
 
-    int nb_pixels_D = 0;
-    for(int i = 0 ; i < floor(3*m/4) ; i++){
-        for(int j = floor(n/2); j< n; j++){
-            if(skel_.at<int>(i,j) > 0){
-                nb_pixels_D = nb_pixels_D + 1;
+    for(int i = 0; i < m; i++){
+        delta_eclair_bis[i] = sqrt(pow(dataSelected_[i][0]-eclair_bis[0],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2],2));
+    }
+
+    for(int i = 0 ; i < m; i++){
+        for(int j= 1 ; j < m_ref; j++){
+            if ( sqrt(pow(dataSelected_[i][0]-eclair_bis[j],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2+j],2)) < delta_eclair_bis[i]) {
+                delta_eclair_bis[i] = sqrt(pow(dataSelected_[i][0]-eclair_bis[j],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2+j],2));
             }
         }
+        somme_delta_eclair_bis = somme_delta_eclair_bis + delta_eclair_bis[i];
     }
 
-    // Calcul du nombre de pixels blancs sur la partie centrale
+    // Dans le cas de l'attaque météore
 
-    int nb_pixels_centre = 0;
-    for(int i = 0 ; i < floor(3*m/4); i++){
-        for(int j = floor(2.5*n/6)-1; j < floor(3.5*n/6); j++){
-            if(skel_.at<int>(i,j) > 0){
-                nb_pixels_centre = nb_pixels_centre + 1;
+    m_ref = meteor.size()/2;
+    vector<float> delta_meteor(m);
+    int somme_delta_meteor = 0;
+
+    for(int i = 0; i < m; i++){
+        delta_meteor[i] = sqrt(pow(dataSelected_[i][0]-meteor[0],2)+pow(dataSelected_[i][1]-meteor[meteor.size()/2],2));
+    }
+
+    for(int i = 0; i < m; i++){
+        for(int j= 1; j < m_ref; j++){
+            if( sqrt(pow(dataSelected_[i][0]-meteor[j],2)+pow(dataSelected_[i][1]-meteor[meteor.size()/2+j],2)) < delta_meteor[i]) {
+                delta_meteor[i] = sqrt(pow(dataSelected_[i][0]-meteor[j],2)+pow(dataSelected_[i][1]-meteor[meteor.size()/2+j],2));
             }
         }
+        somme_delta_meteor = somme_delta_meteor + delta_meteor[i];
     }
 
-    int rapport_pixels = nb_pixels_centre/(nb_pixels_G + nb_pixels_D);
+    // Dans le cas de l'attaque pingouin
+    m_ref = pingouin.size()/2;
+    vector<float> delta_pingouin(m);
+    int somme_delta_pingouin = 0;
 
-    if ((nb_pixels_G < 0.3 * nb_pixels_D) || (nb_pixels_D < 0.3 * nb_pixels_G)){
-        // Seule l'attaque jet est possible
-        verdict = 4;
+    for(int i = 0; i < m; i++){
+        delta_pingouin[i] = sqrt(pow(dataSelected_[i][0]-pingouin[0],2)+pow(dataSelected_[i][1]-pingouin[pingouin.size()/2],2));
     }
-    else if (rapport_pixels > 0.8){
-        verdict = 5;
-    }
-    else if ((nb_pixels_G > 0.9 * nb_pixels_D) || (nb_pixels_D > 0.9 * nb_pixels_G)){
-        // Les attaques fusée, éclair et météore sont possibles
-        m = dataSelected_.size();
 
-        // Dans le cas de l'attaque éclair prise selon sa première configuration
-        int m_ref = eclair.size()/2;
-        vector<float> delta_eclair(m);
-        int somme_delta_eclair = 0;
-
-        for(int i = 0; i < m ; i++){
-            delta_eclair[i] = sqrt(pow(dataSelected_[i][0]-eclair[0],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2],2));
-        }
-
-        for(int i = 0 ; i < m ; i++){
-            for(int j= 1; j < m_ref; j++){
-                if( sqrt(pow(dataSelected_[i][0]-eclair[j],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2+j],2)) < delta_eclair[i]) {
-                    delta_eclair[i] = sqrt(pow(dataSelected_[i][0]-eclair[j],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2+j],2));
-                }
+    for(int i = 0; i < m; i++){
+        for(int j= 1; j < m_ref; j++){
+            if( sqrt(pow(dataSelected_[i][0]-pingouin[j],2)+pow(dataSelected_[i][1]-pingouin[pingouin.size()/2+j],2)) < delta_pingouin[i]) {
+                delta_pingouin[i] = sqrt(pow(dataSelected_[i][0]-pingouin[j],2)+pow(dataSelected_[i][1]-pingouin[pingouin.size()/2+j],2));
             }
-            somme_delta_eclair = somme_delta_eclair + delta_eclair[i];
         }
-
-        // Dans le cas de l'attaque éclair prise selon sa deuxième configuration
-        m_ref = eclair_bis.size()/2;
-        vector<float> delta_eclair_bis(m);
-        int somme_delta_eclair_bis = 0;
-
-        for(int i = 0; i < m; i++){
-            delta_eclair_bis[i] = sqrt(pow(dataSelected_[i][0]-eclair_bis[0],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2],2));
-        }
-
-        for(int i = 0 ; i < m; i++){
-            for(int j= 1 ; j < m_ref; j++){
-                if ( sqrt(pow(dataSelected_[i][0]-eclair_bis[j],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2+j],2)) < delta_eclair_bis[i]) {
-                    delta_eclair_bis[i] = sqrt(pow(dataSelected_[i][0]-eclair_bis[j],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2+j],2));
-                }
-            }
-            somme_delta_eclair_bis = somme_delta_eclair_bis + delta_eclair_bis[i];
-        }
-
-        // Dans le cas de l'attaque fusée
-
-        m_ref = fusee.size()/2;
-        vector<float> delta_fusee(m);
-        int somme_delta_fusee = 0;
-
-        for(int i = 0; i < m; i++){
-            delta_fusee[i] = sqrt(pow(dataSelected_[i][0]-fusee[0],2)+pow(dataSelected_[i][1]-fusee[fusee.size()/2],2));
-        }
-
-        for(int i = 0; i < m; i++){
-            for(int j= 1; j < m_ref; j++){
-                if( sqrt(pow(dataSelected_[i][0]-fusee[j],2)+pow(dataSelected_[i][1]-fusee[fusee.size()/2+j],2)) < delta_fusee[i]) {
-                    delta_fusee[i] = sqrt(pow(dataSelected_[i][0]-fusee[j],2)+pow(dataSelected_[i][1]-fusee[fusee.size()/2+j],2));
-                }
-            }
-            somme_delta_fusee = somme_delta_fusee + delta_fusee[i];
-        }
-
-        // On détermine laquelle des sommes relatives à chaque attaque est la plus petite afin d'affecter la bonne valeur à la variable verdict
-
-        if ((somme_delta_eclair > somme_delta_fusee) && (somme_delta_eclair_bis > somme_delta_fusee)){
-            verdict = 3;
-        }
-        else{
-            verdict = 1;
-        }
-
+        somme_delta_pingouin = somme_delta_pingouin + delta_pingouin[i];
     }
-    else{
-        /*Le joueur ne s'est pas suffisamment bien positionné et il se voit
-          donc affecter une attaue de puissance moindre, à savoir l'attaque
-          météore.*/
-        verdict = 2;
-    }
+
+// On détermine laquelle des sommes relatives à chaque attaque est la plus petite afin d'affecter la bonne valeur à la variable verdict
+    qDebug() << "Delta Eclair" << somme_delta_eclair;
+    qDebug() << "Delta Eclair Bis" << somme_delta_eclair_bis;
+    qDebug() << "Delta Meteor" << somme_delta_meteor;
+    qDebug() << "Delta Pingouin" << somme_delta_pingouin;
+    vector<int> sommes{somme_delta_eclair,somme_delta_eclair_bis,somme_delta_meteor,somme_delta_pingouin};
+    if (somme_delta_eclair == *min_element(sommes.begin(), sommes.end()) && somme_delta_eclair < 1200) verdict = 0;
+    else if (somme_delta_eclair_bis == *min_element(sommes.begin(), sommes.end()) && somme_delta_eclair_bis <1200) verdict = 0;
+    else if (somme_delta_meteor == *min_element(sommes.begin(), sommes.end()) && somme_delta_meteor < 1200) verdict = 1;
+    else if (somme_delta_pingouin == *min_element(sommes.begin(), sommes.end()) && somme_delta_pingouin < 1200) verdict = 2;
+    else verdict = 3;
     dataSelected_.clear();
     return verdict;
 }
@@ -392,91 +371,149 @@ void MainWindow::attack(){
     animationState_ = 0;
 
     //Mise à jour des barres
-    ui->ultimateBarLabel->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Ultbar - " + QString::fromStdString(to_string(ultimateCharge_))+ ".png")));
+    ui->ultProgressBar->setValue(ultimateCharge_);
     ui->player1Lifebar->setValue(players_[0].getPv());
     ui->player2Lifebar->setValue(players_[1].getPv());
-
-    // Pour des tests, a virer !
-    currentAttack_ ++;
-    if (currentAttack_ >=3) currentAttack_= 0;
 }
 
 void MainWindow::animateAttacks(){
 
-    if (currentAttack_ == 0) // Meteore
+    if (currentAttack_ == 0) // Eclair
     {
-        if (animationState_ == 1){
-            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu1"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu1")));
-        }
-        if (animationState_ == 2){
-            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu2"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu2")));
-        }
-        if (animationState_ == 3){
-            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu3"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu3")));
-        }
-        if (animationState_ == 4){
-            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu4"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu4")));
-        }
-        if (animationState_ == 5){
-            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu5"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/feu5")));
-        }
-        if (animationState_ == 6){
-            (activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap()) : ui->activePlayer2_timer->setPixmap(QPixmap());
-        }
-        if (animationState_ == 8){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule1"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule1")));
-        }
-        if (animationState_ == 9){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule2"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule2")));
-        }
-        if (animationState_ == 10){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule3"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule3")));
-        }
-        if (animationState_ == 11){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule4"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule4")));
-        }
-        if (animationState_ == 12){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule5"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Meteore/boule5")));
-        }
-        if (animationState_ == 13){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap()) : ui->activePlayer1_timer->setPixmap(QPixmap());
-        }
+        if (animationState_ == 1) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair1"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair1")));
+        if (animationState_ == 2) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair2"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair2")));
+        if (animationState_ == 3) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair3"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair3")));
+        if (animationState_ == 4) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair4"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair4")));
+        if (animationState_ == 5) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair5"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair5")));
+        if (animationState_ == 6) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair6"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair6")));
+        if (animationState_ == 7) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair7"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair7")));
+        if (animationState_ == 8) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair8"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair8")));
+        if (animationState_ == 9) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair9"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair9")));
+        if (animationState_ == 10) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair10"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair10")));
+        if (animationState_ == 11) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair11"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair11")));
+        if (animationState_ == 12) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair12"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair12")));
+        if (animationState_ == 13) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair13"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair13")));
+        if (animationState_ == 14) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair14"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair14")));
+        if (animationState_ == 15) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair15"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair15")));
+        if (animationState_ == 16) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair16"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair16")));
+        if (animationState_ == 17) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair17"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair17")));
+        if (animationState_ == 18) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair18"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair18")));
+        if (animationState_ == 19) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair19"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair19")));
+        if (animationState_ == 20) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair20"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair20")));
+        if (animationState_ == 21) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair21"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair21")));
+        if (animationState_ == 22) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair22"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair22")));
+        if (animationState_ == 23) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair23"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair23")));
+        if (animationState_ == 24) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair24"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair24")));
+        if (animationState_ == 25) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair25"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair25")));
+        if (animationState_ == 26) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair26"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair26")));
+        if (animationState_ == 27) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair27"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair27")));
+        if (animationState_ == 28) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair28"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair28")));
+        if (animationState_ == 29) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair29"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair29")));
+        if (animationState_ == 30) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair30"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair30")));
+        if (animationState_ == 31) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair31"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair31")));
+        if (animationState_ == 32) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair32"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair32")));
+        if (animationState_ == 33) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair33"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair33")));
+        if (animationState_ == 34) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair34"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair34")));
+        if (animationState_ == 35) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair35"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair35")));
+        if (animationState_ == 36) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair36"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair36")));
+        if (animationState_ == 37) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair37"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair37")));
+        if (animationState_ == 38) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap()) : ui->activePlayer2_timer->setPixmap(QPixmap());
     }
 
-    if (currentAttack_ == 1) // Lightning
+    if (currentAttack_ == 1) //Bomb
     {
-        if (animationState_ == 1){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4")));
-        }
-        if (animationState_ == 2){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5")));
-        }
-        if (animationState_ == 3){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6")));
-        }
-        if (animationState_ == 4){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4")));
-        }
-        if (animationState_ == 5){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5")));
-        }
-        if (animationState_ == 6){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6")));
-        }
-        if (animationState_ == 7){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair4")));
-        }
-        if (animationState_ == 8){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair5")));
-        }
-        if (animationState_ == 9){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6"))) : ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Lightning/eclair6")));
-        }
-        if (animationState_ == 10){
-            (activePlayer_) ? ui->activePlayer2_timer->setPixmap(QPixmap()) : ui->activePlayer1_timer->setPixmap(QPixmap());
-        }
+       if (animationState_ == 1) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb1"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb1")));
+       if (animationState_ == 2) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb2"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb2")));
+       if (animationState_ == 3) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb3"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb3")));
+       if (animationState_ == 4) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb4"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb4")));
+       if (animationState_ == 5) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb5"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb5")));
+       if (animationState_ == 6) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb6"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb6")));
+       if (animationState_ == 7) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb7"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb7")));
+       if (animationState_ == 8) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb8"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb8")));
+       if (animationState_ == 9) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb9"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb9")));
+       if (animationState_ == 10) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb10"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb10")));
+       if (animationState_ == 11) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb11"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb11")));
+       if (animationState_ == 12) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb12"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb12")));
+       if (animationState_ == 13) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb13"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb13")));
+       if (animationState_ == 14) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb14"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb14")));
+       if (animationState_ == 15) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb15"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb15")));
+       if (animationState_ == 16) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb16"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb16")));
+       if (animationState_ == 17) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb17"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb17")));
+       if (animationState_ == 18) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb18"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb18")));
+       if (animationState_ == 19) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb19"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb19")));
+       if (animationState_ == 20) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb20"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb20")));
+       if (animationState_ == 21) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb21"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb21")));
+       if (animationState_ == 22) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb22"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb22")));
+       if (animationState_ == 23) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb23"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb23")));
+       if (animationState_ == 24) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb24"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb24")));
+       if (animationState_ == 25) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb25"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb25")));
+       if (animationState_ == 26) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb26"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb26")));
+       if (animationState_ == 27) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb27"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb27")));
+       if (animationState_ == 28) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb28"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb28")));
+       if (animationState_ == 29) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb29"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb29")));
+       if (animationState_ == 30) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb30"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb30")));
+       if (animationState_ == 31) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb31"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb31")));
+       if (animationState_ == 32) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb32"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb32")));
+       if (animationState_ == 33) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb33"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb33")));
+       if (animationState_ == 34) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb34"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb34")));
+       if (animationState_ == 35) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb35"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb35")));
+       if (animationState_ == 36) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb36"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb36")));
+       if (animationState_ == 37) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb37"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb37")));
+       if (animationState_ == 38) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb38"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb38")));
+       if (animationState_ == 39) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb39"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb39")));
+       if (animationState_ == 40) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb40"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb40")));
+       if (animationState_ == 41) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb41"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb41")));
+       if (animationState_ == 42) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb42"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb42")));
+       if (animationState_ == 43) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb43"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/bomb/bomb43")));
+       if (animationState_ == 44) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap()) : ui->activePlayer2_timer->setPixmap(QPixmap());
     }
 
+    if (currentAttack_==2){
+        if (animationState_ == 1) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall1"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall1")));
+        if (animationState_ == 2) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall2"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall2")));
+        if (animationState_ == 3) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall3"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall3")));
+        if (animationState_ == 4) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall4"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall4")));
+        if (animationState_ == 5) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall5"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall5")));
+        if (animationState_ == 6) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall6"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall6")));
+        if (animationState_ == 7) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall7"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall7")));
+        if (animationState_ == 8) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall8"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall8")));
+        if (animationState_ == 9) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall9"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall9")));
+        if (animationState_ == 10) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall10"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall10")));
+        if (animationState_ == 11) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall11"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall11")));
+        if (animationState_ == 12) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall12"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall12")));
+        if (animationState_ == 13) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall13"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall13")));
+        if (animationState_ == 14) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall14"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall14")));
+        if (animationState_ == 15) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall15"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall15")));
+        if (animationState_ == 16) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall16"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall16")));
+        if (animationState_ == 17) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall17"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall17")));
+        if (animationState_ == 18) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall18"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall18")));
+        if (animationState_ == 19) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall19"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall19")));
+        if (animationState_ == 20) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall20"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall20")));
+        if (animationState_ == 21) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall21"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall21")));
+        if (animationState_ == 22) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall22"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall22")));
+        if (animationState_ == 23) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall23"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall23")));
+        if (animationState_ == 24) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall24"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall24")));
+        if (animationState_ == 25) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall25"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall25")));
+        if (animationState_ == 26) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall26"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall26")));
+        if (animationState_ == 27) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall27"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall27")));
+        if (animationState_ == 28) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall28"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall28")));
+        if (animationState_ == 29) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall29"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall29")));
+        if (animationState_ == 30) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap()) : ui->activePlayer2_timer->setPixmap(QPixmap());
+    }
+
+    if(currentAttack_ == 3){
+        if (animationState_ == 1) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté1"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté1")));
+        if (animationState_ == 2) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté2"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté2")));
+        if (animationState_ == 3) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté3"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté3")));
+        if (animationState_ == 4) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté4"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté4")));
+        if (animationState_ == 5) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté5"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté5")));
+        if (animationState_ == 6) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté6"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté6")));
+        if (animationState_ == 7) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté7"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté7")));
+        if (animationState_ == 8) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté8"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté8")));
+        if (animationState_ == 9) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté9"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté9")));
+        if (animationState_ == 10) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap()) : ui->activePlayer2_timer->setPixmap(QPixmap());
+
+    }
 }
 
 void MainWindow::timerForAttack(){
