@@ -1,12 +1,9 @@
 #include "player.h"
 
-Player::Player(String name, int pv, int score, bool shieldEnable, int shieldCD)
+Player::Player(int HP, int score)
 {
-    name_ = name;
-    pv_ = pv;
+    HP_ = HP;
     score_ = score;
-    shieldEnable_ = shieldEnable;
-    shieldCD_ = shieldCD;
 }
 
 

@@ -3,6 +3,9 @@
 
 #include <QMainWindow>
 #include <QTimer>
+#include <QSound>
+#include <QSoundEffect>
+#include <windows.h>
 
 #include "attack.h"
 #include "player.h"
@@ -29,13 +32,9 @@ public:
     ~MainWindow();
 
     void initGame();
-    Mat findSkel(Mat frame);
     void updateBG();
     void updatePP(Player player);
-    Attack compareSkel(Mat Skel);
     void updateBackground();
-    void remove_small_objects( cv::Mat& im, double size);
-    void skel(Mat &src,Mat &dst);
     void switchTurn();
     void timerForAttack();
     void attack();
@@ -46,40 +45,35 @@ public:
     vector<float> getDatas(int x1,int y1,int x2,int y2);
     int verdict();
 
-    //Getters & Setters
-    void setUltimateCharge(int ultimateCharge) {ultimateCharge_ = ultimateCharge;}
-    int getUltimateCharge() {return ultimateCharge_;}
-    void setActivePlayer(int activePlayer) {activePlayer_ = activePlayer;}
-    int getActivePlayer() {return activePlayer_;}
-    void setBackground(Mat background) {background_ = background;}
-    Mat getBackground() {return background_;}
-
-
 private:
-    int ultimateCharge_ = 0;
     vector<Player> players_;
     vector<Attack> attacks_;
     vector<vector<float>> dataSelected_;
+    int ultimateCharge_ = 0;
     int activePlayer_;
     int currentAttack_ = 6;
     int animationState_ = 0;
-    VideoCapture camera_;
-    QTimer gameTimer;
-    QTimer skelTimer;
-    QTimer attackTimer;
-    QTimer animationTimer_;
-    Ui::MainWindow *ui;
-    String path_;
+    int restartWait_ = 0;
     int time_ = -2;
+    VideoCapture camera_;
+    QTimer gameTimer,skelTimer,attackTimer,animationTimer_,restartTimer_;
+    Ui::MainWindow *ui;
     Mat background_, currentPic_, skel_;
+    QSound *lightningSound_ = new QSound(":/img/GUI/Sons/éclair.wav");
+    QSound *bombSound_ = new QSound(":/img/GUI/Sons/Bomb2.wav");
+    QSound *pingouinSound_ = new QSound(":/img/GUI/Sons/Pingu.wav");
+    QSound *tatakaiSound_ = new QSound(":/img/GUI/Sons/TATAKAI.wav");
+    // Path is not in ressource file for memory purposes
+    QSound *loopSong_ = new QSound("C:/Users/Dorian/Desktop/Cours/Semestre 8/Couleur/Projet Couleur/GUI/Sons/loopSong2.wav");
 
 private slots:
     void updateGame();
-    void moinsFond();
+    void imageProcessing();
     void on_updateBGButton_clicked();
     void on_updatePlayer1PicButton_clicked();
     void on_updatePlayer2PicButton_clicked();
     void on_playPauseButton_clicked();
+    void on_startingButton_clicked();
 };
 
 #endif // MAINWINDOW_H

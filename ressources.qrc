@@ -1,46 +1,12 @@
 <RCC>
     <qresource prefix="/img">
-        <file>GUI/Projet.png</file>
         <file>GUI/P1 - 0pt.png</file>
         <file>GUI/P1 - 1pt.png</file>
         <file>GUI/P1 - 2pt.png</file>
         <file>GUI/P2 - 0pt.png</file>
         <file>GUI/P2 - 1pt.png</file>
         <file>GUI/P2 - 2pt.png</file>
-        <file>GUI/Ultbar - 0.png</file>
-        <file>GUI/Ultbar - 1.png</file>
-        <file>GUI/Ultbar - 2.png</file>
-        <file>GUI/Ultbar - 3.png</file>
-        <file>GUI/Ultbar - 4.png</file>
-        <file>GUI/Ultbar - 5.png</file>
-        <file>GUI/Ultbar - 6.png</file>
-        <file>GUI/Ultbar - 7.png</file>
-        <file>GUI/Ultbar - 8.png</file>
-        <file>GUI/Ultbar - 9.png</file>
-        <file>GUI/Ultbar - 10.png</file>
         <file>GUI/PP.png</file>
-        <file>GUI/ActivePlayerFrame.png</file>
-        <file>GUI/Lightning/eclair1.png</file>
-        <file>GUI/Lightning/eclair2.png</file>
-        <file>GUI/Lightning/eclair3.png</file>
-        <file>GUI/Lightning/eclair4.png</file>
-        <file>GUI/Lightning/eclair5.png</file>
-        <file>GUI/Lightning/eclair6.png</file>
-        <file>GUI/Meteore/boule1.png</file>
-        <file>GUI/Meteore/boule2.png</file>
-        <file>GUI/Meteore/boule3.png</file>
-        <file>GUI/Meteore/boule4.png</file>
-        <file>GUI/Meteore/boule5.png</file>
-        <file>GUI/deux.png</file>
-        <file>GUI/trois.png</file>
-        <file>GUI/un.png</file>
-        <file>GUI/Meteore/feu1.png</file>
-        <file>GUI/Meteore/feu2.png</file>
-        <file>GUI/Meteore/feu3.png</file>
-        <file>GUI/Meteore/feu4.png</file>
-        <file>GUI/Meteore/feu5.png</file>
-        <file>GUI/youLose.png</file>
-        <file>GUI/youWin.png</file>
         <file>GUI/flop/raté1.png</file>
         <file>GUI/flop/raté2.png</file>
         <file>GUI/flop/raté3.png</file>
@@ -156,7 +122,6 @@
         <file>GUI/storm/eclair35.png</file>
         <file>GUI/storm/eclair36.png</file>
         <file>GUI/storm/eclair37.png</file>
-        <file>GUI/frame.png</file>
         <file>GUI/frame3.png</file>
         <file>GUI/pause.png</file>
         <file>GUI/quitter.png</file>
@@ -166,5 +131,19 @@
         <file>GUI/leftLifeBar.png</file>
         <file>GUI/rightLifeBar.png</file>
         <file>GUI/Ultbar.png</file>
+        <file>GUI/BG1.PNG</file>
+        <file>GUI/Tatakai logo.png</file>
+        <file>GUI/win.png</file>
+        <file>GUI/Sons/éclair.wav</file>
+        <file>GUI/Sons/Pingu.wav</file>
+        <file>GUI/1.png</file>
+        <file>GUI/2.png</file>
+        <file>GUI/3.png</file>
+        <file>GUI/blackScreen.png</file>
+        <file>GUI/Sons/Bomb2.wav</file>
+        <file>GUI/Round2.png</file>
+        <file>GUI/Round3.png</file>
+        <file>GUI/MarvelStyle.png</file>
+        <file>GUI/Sons/TATAKAI.wav</file>
     </qresource>
 </RCC>

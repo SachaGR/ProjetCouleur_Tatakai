@@ -12,6 +12,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    // Setup the timers
     connect(&gameTimer,  &QTimer::timeout, [&] {
         updateGame();
     });
@@ -28,96 +29,139 @@ MainWindow::MainWindow(QWidget *parent) :
     });
     animationTimer_.setInterval(100);
 
-    path_ = "C:/Users/Dorian/Desktop/Cours/Semestre 8/Couleur/Projet Couleur/Photos/";
+    connect(&restartTimer_,  &QTimer::timeout, [&] {
+        restartGame();
+        restartWait_ ++;
+    });
+    restartTimer_.setInterval(3000);
+
+    // Init the camera
     camera_ = 0;
+
+    // Init the game
     initGame();
 
-    // Init Background
+    // Init the background matrix
     updateBackground();
+
+    // Set the black background for starting screen
+    QPixmap blackScreen(":/img/GUI/blackScreen.PNG");
+    blackScreen = blackScreen.scaled(this->size(), Qt::IgnoreAspectRatio);
+    QPalette palette;
+    palette.setBrush(QPalette::Background, blackScreen);
+    this->setPalette(palette);
+
+    // Start and loop the music
+    loopSong_->setLoops(QSound::Infinite);
+    loopSong_->play();
+
+    setFixedSize(1280, 720);
 }
 
+/** Rhythm of the game
+ * @brief MainWindow::updateGame
+ */
 void MainWindow::updateGame(){
+    // Take a picture and update the display
     camera_ >> currentPic_;
     flip(currentPic_,currentPic_,1);
     cvtColor(currentPic_, currentPic_, CV_BGR2RGB);
     ui->cameraLabel->setPixmap(QPixmap::fromImage(QImage(currentPic_.data, currentPic_.cols, currentPic_.rows,currentPic_.step, QImage::Format_RGB888)));
 
-    if (players_[0].getPv() <= 0)
+    // In case of death
+    if (players_[0].getHP() <= 0)
     {
-        //Attendre un instant
-        players_[0].setPv(0);
-        ui->player1Lifebar->setValue(players_[0].getPv());
+        // Do death stuffs
+        players_[0].setHP(1);
+        ui->player1Lifebar->setValue(players_[0].getHP());
         attackTimer.stop();
         players_[1].setScore(players_[1].getScore() + 1);
+        animationState_ = 100;
+        ui->activePlayer1_timer->setPixmap(QPixmap());
+        ui->activePlayer2_timer->setPixmap(QPixmap());
+
+        // If the game is ended
         if (players_[1].getScore() >= 2)
         {
+            // Score update
             players_[1].setScore(2);
             QString img2 = ":/img/GUI/P2 - " + QString::fromStdString(to_string(players_[1].getScore())) + "pt.png";
             ui->scorePlayer2Label->setPixmap(QPixmap::fromImage(QImage(img2)));
 
-            // Arrêt du jeu
+            // Graphics reset
+            ui->activePlayer1->setStyleSheet("");
+            ui->activePlayer2->setStyleSheet("");
+
+            // Stop the game and ask for rematch
             ui->playPauseButton->setText("Replay ?");
             gameTimer.stop();
 
-            // Affichage de victoire
-            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/youWin.png")));
-            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/youLose.png")));
+            // Victory display
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/win.png")));
         }
         else
         {
-            restartGame();
+            // Prepare for restart and display the next round
+            ui->titleLabel->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Round"+QString::fromStdString(to_string(players_[0].getScore()+players_[1].getScore()+1)) +".png")));
+            restartTimer_.start();
         }
     }
-    if (players_[1].getPv() <= 0)
+    // Same for the second player
+    if (players_[1].getHP() <= 0)
     {
-        // Attendre un instant
-        players_[1].setPv(0);
-        ui->player2Lifebar->setValue(players_[1].getPv());
+        players_[1].setHP(1);
+        ui->player2Lifebar->setValue(players_[1].getHP());
         attackTimer.stop();
         players_[0].setScore(players_[0].getScore() + 1);
+        animationState_ = 100;
+        ui->activePlayer1_timer->setPixmap(QPixmap());
+        ui->activePlayer2_timer->setPixmap(QPixmap());
         if (players_[0].getScore() >= 2)
         {
             players_[0].setScore(2);
             QString img1 = ":/img/GUI/P1 - " + QString::fromStdString(to_string(players_[0].getScore())) + "pt.png";
             ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(img1)));
 
-            // Arrêt du jeu
+            ui->activePlayer1->setStyleSheet("");
+            ui->activePlayer2->setStyleSheet("");
+
             ui->playPauseButton->setText("Replay ?");
             gameTimer.stop();
 
-            // Affichage de victoire
-            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/youWin.png")));
-            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/youLose.png")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/win.png")));
         }
         else
         {
-            restartGame();
+            ui->titleLabel->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/Round"+QString::fromStdString(to_string(players_[0].getScore()+players_[1].getScore()+1)) +".png")));
+            restartTimer_.start();
         }
     }
 }
 
+/** Swap the two players to swith the turn.
+ * @brief MainWindow::switchTurn
+ */
 void MainWindow::switchTurn(){
     activePlayer_ = !activePlayer_;
     if (activePlayer_ == 1){
-            //ui->activePlayer1->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/ActivePlayerFrame.png")));
-            //ui->activePlayer2->setPixmap(QPixmap());
             ui->activePlayer1->setStyleSheet("background-color:rgba(116, 116, 116, 220)");
             ui->activePlayer2->setStyleSheet("");
     }else{
-            //ui->activePlayer2->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/ActivePlayerFrame.png")));
-            //ui->activePlayer1->setPixmap(QPixmap());
             ui->activePlayer2->setStyleSheet("background-color:rgba(116, 116, 116, 220)");
             ui->activePlayer1->setStyleSheet("");
     }
     time_ = -4;
 }
 
+/** Init the game
+ * @brief MainWindow::initGame
+ */
 void MainWindow::initGame() {
     // Init Players
-    players_.push_back(Player("Player 1" , 100 , 0 , true, 2));
-    players_.push_back(Player("Player 2" , 100 , 0 , true, 2));
-    ui->player1Lifebar->setValue(players_[0].getPv());
-    ui->player2Lifebar->setValue(players_[1].getPv());
+    players_.push_back(Player(100 , 0));
+    players_.push_back(Player(100 , 0));
+    ui->player1Lifebar->setValue(players_[0].getHP());
+    ui->player2Lifebar->setValue(players_[1].getHP());
 
     // Init Score
     QString img1 = ":/img/GUI/P1 - " + QString::fromStdString(to_string(players_[0].getScore())) + "pt.png";
@@ -133,29 +177,36 @@ void MainWindow::initGame() {
     ui->activePlayer1_timer->setPixmap(QPixmap());
 
     // Init Attacks
-    QPixmap animationSpritesLaser;
-    attacks_.push_back(Attack("Laser", 70, 1, animationSpritesLaser));
-    QPixmap animationSpritesLightning;
-    attacks_.push_back(Attack("Lightning", 80, 3, animationSpritesLightning));
-    QPixmap animationSpritesRocket;
-    attacks_.push_back(Attack("Rocket", 75, 2, animationSpritesRocket));
+    attacks_.push_back(Attack("Lightning", 22, 2));
+    attacks_.push_back(Attack("Bomb", 30, 1));
+    attacks_.push_back(Attack("Pingouin", 37, 3));
 
     // Select the first player and display it
     activePlayer_ = rand()%2;
     switchTurn();
 
+    // Start the game
     gameTimer.start();
     animationTimer_.start();
 }
 
+/** Restart the game
+ * @brief MainWindow::restartGame
+ */
 void MainWindow::restartGame(){
-    players_[0].setPv(100);
-    players_[1].setPv(100);
-    ui->player1Lifebar->setValue(players_[0].getPv());
-    ui->player2Lifebar->setValue(players_[1].getPv());
+    tatakaiSound_->play();
+    // Clear the display
+    ui->titleLabel->setPixmap(QPixmap());
+    restartTimer_.stop();
+    //Give HP back
+    players_[0].setHP(100);
+    players_[1].setHP(100);
+    ui->player1Lifebar->setValue(players_[0].getHP());
+    ui->player2Lifebar->setValue(players_[1].getHP());
+    // Reset ultimate
     ultimateCharge_ = 0;
     ui->ultProgressBar->setValue(ultimateCharge_);
-    ui->activePlayer1_timer->setPixmap(QPixmap());
+    // Reset score
     QString img1 = ":/img/GUI/P1 - " + QString::fromStdString(to_string(players_[0].getScore())) + "pt.png";
     ui->scorePlayer1Label->setPixmap(QPixmap::fromImage(QImage(img1)));
     QString img2 = ":/img/GUI/P2 - " + QString::fromStdString(to_string(players_[1].getScore())) + "pt.png";
@@ -168,6 +219,9 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+/** Update the background using the mean of last images
+ * @brief MainWindow::updateBackground
+ */
 void MainWindow::updateBackground(){
     Mat mat1, mat2, mat3, mat4, mat5;
     camera_ >> mat1;
@@ -176,37 +230,34 @@ void MainWindow::updateBackground(){
     camera_ >> mat4;
     camera_ >> mat5;
     background_ = (mat1/5+mat2/5+mat3/5+mat4/5+mat5/5) ;
-    imwrite( path_ + "BG/background.jpg", background_);
     cvtColor(background_,background_,COLOR_BGR2GRAY);
 }
 
-void MainWindow::moinsFond(){
+/** Take a picture and tell which attack it is
+ * @brief MainWindow::imageProcessing
+ */
+void MainWindow::imageProcessing(){
+    // Take the right picture depending on the active player
     Mat currentPic;
     flip(currentPic_,currentPic,1);
     Mat currentPlayer (currentPic, Rect(0 + 320*!activePlayer_, 0, 320, 480));
     Mat currentBG (background_, Rect(0 + 320*!activePlayer_, 0, 320, 480));
-    //imwrite( path_ + "currentPic.jpg", currentPlayer );
     cvtColor(currentPlayer,currentPlayer,COLOR_BGR2GRAY);
+
+    // Substract the background
     subtract(currentBG,currentPlayer,skel_);
-    /*threshold(skel_, skel_, 15, 255,THRESH_BINARY );
-    Mat element = getStructuringElement(2,Size(7,7));
-    morphologyEx( skel_, skel_, 0, element );
-    element = getStructuringElement(2,Size(15,15));
-    morphologyEx( skel_, skel_, 1, element );
-    remove_small_objects(skel_,10);
-    //skel(skel_,skel_);
-    //imwrite( path_ + "skel_.jpg", skel_ );*/
 
-
+    // Do some image processing
     threshold(skel_, skel_, 25, 255, cv::THRESH_BINARY);
-
     Mat element = getStructuringElement(2,Size(18,18));
     morphologyEx( skel_, skel_, 1, element );
     element = getStructuringElement(2,Size(19,19));
     morphologyEx( skel_, skel_, 0, element );
 
+    // Do a skeletonization
     thinning(skel_, skel_);
 
+    // Do hough transform on the image
     skel_=Mat(skel_, Rect(5, 5, 310, 470));
     Mat color_dst;
     cvtColor(skel_,color_dst,CV_GRAY2BGR);
@@ -229,13 +280,20 @@ void MainWindow::moinsFond(){
         if (dataSelected_[i][0] > 4*dataSelected_[i][1]) dataSelected_.erase(dataSelected_.begin()+i);
         else i++;
     }
-    imshow("display",color_dst);
-    attack();
+    // Get the attack detecterd
     currentAttack_ = verdict();
-    qDebug() << "Verdict " << currentAttack_;
+    attack();
     switchTurn();
 }
 
+/** Extract the data from hough transform
+ * @brief MainWindow::getDatas
+ * @param x1 lower edge of hough line
+ * @param y1 lower edge of hough line
+ * @param x2 upper edge of hough line
+ * @param y2 upper edge of hough line
+ * @return
+ */
 vector<float> MainWindow::getDatas(int x1,int y1,int x2,int y2){
     if (x1 == x2) x2 += 0.1*x2;
     float a=(y2-y1)/(x2-x1);
@@ -248,39 +306,24 @@ vector<float> MainWindow::getDatas(int x1,int y1,int x2,int y2){
     return datas;
 }
 
+/** Tell which is the attack according to hough lines.
+ * @brief MainWindow::verdict
+ * @return
+ */
 int MainWindow::verdict(){
-    //fonction qui retourne verdict
     int verdict = 6;
-    // Recherche pour chaque droite de la plus probable pour chaque attaque de référence
-    // Deux tableaux différents seront considérés pour que la position puisse
-    // être prise dans les deux configurations possibles
-    /*vector<float> eclair{95.102965265535, 448.482922494281, 224.583064777916, 171.473394437738, 246.269944302787,448.482922494281, -3.91385117102071, -175.463520467813, -171.473394437738, -175.662644102559};
-    vector<float> eclair_bis{218.849733728635, 450.482846340409, 2.852105258346991e+02, 3.93130424201746};
-    vector<float> meteor{451, 179.958675811976, 276.741174271822, 0, -179.958675811976, 271.952794548342};
-    vector<float> pingouin{0,477,224,0};*/
-    /*vector<float> eclair{95, 224, 171, 246,448, -175, -171, -175};
-    vector<float> eclair_bis{218, 285};
-    vector<float> meteor{179, 276, -179, 271};
-    vector<float> pingouin{0,224};*/
-    vector<float> eclair{-70, 70};
-    vector<float> eclair_bis{250, 250};
-    vector<float> meteor{250, -70, 250, 70};
-    vector<float> pingouin{-3,300};
-    /* Première étape de classification à partir du nombre de pixels blancs
-       associés au squelette sur les parties droite et gauche de l'image acquise
-      (car identique quelque soit la taille de la personne) */
-    qDebug() << dataSelected_;
-    // Les attaques pingouin, éclair et météore sont possibles
+    // References of the positions
+    vector<float> eclair{-70,-100,-150,-200,-250,70,100,150,200,250};
+    vector<float> eclair_bis{70,100,150,200,250,70,100,150,200,250};
+    vector<float> meteor{70,100,150,200,250,-70,-100,-150,-200,-250,70,100,150,200,250,70,100,150,200,250};
+    vector<float> pingouin{-3,-2,-4,300,200,400};
+
+    // Lightning attack
     int m = dataSelected_.size();
-    // Dans le cas de l'attaque éclair prise selon sa première configuration
     int m_ref = eclair.size()/2;
     vector<float> delta_eclair(m);
     int somme_delta_eclair = 0;
-
-    for(int i = 0; i < m ; i++){
-        delta_eclair[i] = sqrt(pow(dataSelected_[i][0]-eclair[0],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2],2));
-    }
-
+    for(int i = 0; i < m ; i++) delta_eclair[i] = sqrt(pow(dataSelected_[i][0]-eclair[0],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2],2));
     for(int i = 0 ; i < m ; i++){
         for(int j= 1; j < m_ref; j++){
             if( sqrt(pow(dataSelected_[i][0]-eclair[j],2)+pow(dataSelected_[i][1]-eclair[eclair.size()/2+j],2)) < delta_eclair[i]) {
@@ -289,16 +332,10 @@ int MainWindow::verdict(){
         }
         somme_delta_eclair = somme_delta_eclair + delta_eclair[i];
     }
-
-    // Dans le cas de l'attaque éclair prise selon sa deuxième configuration
     m_ref = eclair_bis.size()/2;
     vector<float> delta_eclair_bis(m);
     int somme_delta_eclair_bis = 0;
-
-    for(int i = 0; i < m; i++){
-        delta_eclair_bis[i] = sqrt(pow(dataSelected_[i][0]-eclair_bis[0],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2],2));
-    }
-
+    for(int i = 0; i < m; i++) delta_eclair_bis[i] = sqrt(pow(dataSelected_[i][0]-eclair_bis[0],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2],2));
     for(int i = 0 ; i < m; i++){
         for(int j= 1 ; j < m_ref; j++){
             if ( sqrt(pow(dataSelected_[i][0]-eclair_bis[j],2)+pow(dataSelected_[i][1]-eclair_bis[eclair_bis.size()/2+j],2)) < delta_eclair_bis[i]) {
@@ -308,16 +345,11 @@ int MainWindow::verdict(){
         somme_delta_eclair_bis = somme_delta_eclair_bis + delta_eclair_bis[i];
     }
 
-    // Dans le cas de l'attaque météore
-
+    // Bomb attack
     m_ref = meteor.size()/2;
     vector<float> delta_meteor(m);
     int somme_delta_meteor = 0;
-
-    for(int i = 0; i < m; i++){
-        delta_meteor[i] = sqrt(pow(dataSelected_[i][0]-meteor[0],2)+pow(dataSelected_[i][1]-meteor[meteor.size()/2],2));
-    }
-
+    for(int i = 0; i < m; i++)delta_meteor[i] = sqrt(pow(dataSelected_[i][0]-meteor[0],2)+pow(dataSelected_[i][1]-meteor[meteor.size()/2],2));
     for(int i = 0; i < m; i++){
         for(int j= 1; j < m_ref; j++){
             if( sqrt(pow(dataSelected_[i][0]-meteor[j],2)+pow(dataSelected_[i][1]-meteor[meteor.size()/2+j],2)) < delta_meteor[i]) {
@@ -327,15 +359,11 @@ int MainWindow::verdict(){
         somme_delta_meteor = somme_delta_meteor + delta_meteor[i];
     }
 
-    // Dans le cas de l'attaque pingouin
+    // Pingouin attack
     m_ref = pingouin.size()/2;
     vector<float> delta_pingouin(m);
     int somme_delta_pingouin = 0;
-
-    for(int i = 0; i < m; i++){
-        delta_pingouin[i] = sqrt(pow(dataSelected_[i][0]-pingouin[0],2)+pow(dataSelected_[i][1]-pingouin[pingouin.size()/2],2));
-    }
-
+    for(int i = 0; i < m; i++)delta_pingouin[i] = sqrt(pow(dataSelected_[i][0]-pingouin[0],2)+pow(dataSelected_[i][1]-pingouin[pingouin.size()/2],2));
     for(int i = 0; i < m; i++){
         for(int j= 1; j < m_ref; j++){
             if( sqrt(pow(dataSelected_[i][0]-pingouin[j],2)+pow(dataSelected_[i][1]-pingouin[pingouin.size()/2+j],2)) < delta_pingouin[i]) {
@@ -345,23 +373,27 @@ int MainWindow::verdict(){
         somme_delta_pingouin = somme_delta_pingouin + delta_pingouin[i];
     }
 
-// On détermine laquelle des sommes relatives à chaque attaque est la plus petite afin d'affecter la bonne valeur à la variable verdict
-    qDebug() << "Delta Eclair" << somme_delta_eclair;
-    qDebug() << "Delta Eclair Bis" << somme_delta_eclair_bis;
-    qDebug() << "Delta Meteor" << somme_delta_meteor;
-    qDebug() << "Delta Pingouin" << somme_delta_pingouin;
+    // The closest from the reference is chosed
     vector<int> sommes{somme_delta_eclair,somme_delta_eclair_bis,somme_delta_meteor,somme_delta_pingouin};
-    if (somme_delta_eclair == *min_element(sommes.begin(), sommes.end()) && somme_delta_eclair < 1200) verdict = 0;
-    else if (somme_delta_eclair_bis == *min_element(sommes.begin(), sommes.end()) && somme_delta_eclair_bis <1200) verdict = 0;
-    else if (somme_delta_meteor == *min_element(sommes.begin(), sommes.end()) && somme_delta_meteor < 1200) verdict = 1;
-    else if (somme_delta_pingouin == *min_element(sommes.begin(), sommes.end()) && somme_delta_pingouin < 1200) verdict = 2;
+    if (somme_delta_eclair == *min_element(sommes.begin(), sommes.end()) && somme_delta_eclair < 600) verdict = 0;
+    else if (somme_delta_eclair_bis == *min_element(sommes.begin(), sommes.end()) && somme_delta_eclair_bis <600) verdict = 0;
+    else if (somme_delta_meteor == *min_element(sommes.begin(), sommes.end()) && somme_delta_meteor < 600) verdict = 1;
+    else if (somme_delta_pingouin == *min_element(sommes.begin(), sommes.end()) && somme_delta_pingouin < 600) verdict = 2;
     else verdict = 3;
     dataSelected_.clear();
     return verdict;
 }
 
+/** Perform the attack
+ * @brief MainWindow::attack
+ */
 void MainWindow::attack(){
-    // Calcul des dégats et charges
+    // Sounds
+    if (currentAttack_ == 0) lightningSound_->play();
+    if (currentAttack_ == 1) bombSound_->play();
+    if (currentAttack_ == 2) pingouinSound_->play();
+
+    // Damages and ultimate charge
     attacks_[currentAttack_].damage(&players_[!activePlayer_],ultimateCharge_>=10);
     if (ultimateCharge_ >= 10) ultimateCharge_ = 0;
     ultimateCharge_ += attacks_[currentAttack_].getUltCharge();
@@ -370,15 +402,18 @@ void MainWindow::attack(){
     // Animation
     animationState_ = 0;
 
-    //Mise à jour des barres
+    // HealthBar updates
     ui->ultProgressBar->setValue(ultimateCharge_);
-    ui->player1Lifebar->setValue(players_[0].getPv());
-    ui->player2Lifebar->setValue(players_[1].getPv());
+    ui->player1Lifebar->setValue(players_[0].getHP());
+    ui->player2Lifebar->setValue(players_[1].getHP());
 }
 
+/** Attacks animation
+ * @brief MainWindow::animateAttacks
+ */
 void MainWindow::animateAttacks(){
 
-    if (currentAttack_ == 0) // Eclair
+    if (currentAttack_ == 0) // Lightning
     {
         if (animationState_ == 1) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair1"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair1")));
         if (animationState_ == 2) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair2"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/storm/eclair2")));
@@ -468,7 +503,7 @@ void MainWindow::animateAttacks(){
        if (animationState_ == 44) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap()) : ui->activePlayer2_timer->setPixmap(QPixmap());
     }
 
-    if (currentAttack_==2){
+    if (currentAttack_==2){ // Pingouin
         if (animationState_ == 1) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall1"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall1")));
         if (animationState_ == 2) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall2"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall2")));
         if (animationState_ == 3) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall3"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/pingouin/fall3")));
@@ -501,7 +536,7 @@ void MainWindow::animateAttacks(){
         if (animationState_ == 30) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap()) : ui->activePlayer2_timer->setPixmap(QPixmap());
     }
 
-    if(currentAttack_ == 3){
+    if(currentAttack_ == 3){ // Flop
         if (animationState_ == 1) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté1"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté1")));
         if (animationState_ == 2) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté2"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté2")));
         if (animationState_ == 3) (!activePlayer_) ? ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté3"))) : ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/flop/raté3")));
@@ -516,62 +551,48 @@ void MainWindow::animateAttacks(){
     }
 }
 
+/** Update the timer of the attack
+ * @brief MainWindow::timerForAttack
+ */
 void MainWindow::timerForAttack(){
     if (!activePlayer_ && time_ >= 1){
         if (time_ == 1) {
-            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/trois.png")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/3.png")));
         }
         else if (time_ == 2) {
-            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/deux.png")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/2.png")));
         }
         else if (time_ == 3) {
-            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/un.png")));
+            ui->activePlayer1_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/1.png")));
         }
         else {
             ui->activePlayer1_timer->setPixmap(QPixmap());
-            moinsFond();
+            imageProcessing();
         }
     }
     else if (time_ >= 1){
         if (time_ == 1) {
-            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/trois.png")));
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/3.png")));
         }
         else if (time_ == 2) {
-            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/deux.png")));
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/2.png")));
         }
         else if (time_ == 3) {
-            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/un.png")));
+            ui->activePlayer2_timer->setPixmap(QPixmap::fromImage(QImage(":/img/GUI/1.png")));
         }
         else {
             ui->activePlayer2_timer->setPixmap(QPixmap());
-            moinsFond();
+            imageProcessing();
         }
     }
     time_++;
 }
 
-// Function to remove small blobs from the binary image
-void MainWindow::remove_small_objects( cv::Mat& im, double size )
-{
-    // Only accept CV_8UC1
-        if (im.channels() != 1 || im.type() != CV_8U)
-            return;
-
-        // Find all contours
-        std::vector<std::vector<cv::Point> > contours;
-        cv::findContours(im.clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-
-        for (int i = 0; i < contours.size(); i++)
-        {
-            // Calculate contour area
-            double area = cv::contourArea(contours[i]);
-
-            // Remove small objects by drawing the contour with black color
-            if (area > 0 && area <= size)
-                cv::drawContours(im, contours, i, CV_RGB(0, 0, 0), -1);
-        }
-}
-
+/** Do the thinning operations
+ * @brief MainWindow::thinningIteration
+ * @param img the image to thin
+ * @param iter the number of iteration
+ */
 void MainWindow::thinningIteration(cv::Mat& img, int iter)
 {
     CV_Assert(img.channels() == 1);
@@ -647,12 +668,10 @@ void MainWindow::thinningIteration(cv::Mat& img, int iter)
     img &= ~marker;
 }
 
-/**
- * Function for thinning the given binary image
- *
- * Parameters:
- * 		src  The source image, binary with range = [0,255]
- * 		dst  The destination image
+/** Function for thinning the given binary image
+ * @brief MainWindow::thinning
+ * @param src The source image, binary with range = [0,255]
+ * @param dst The destination image
  */
 void MainWindow::thinning(const cv::Mat& src, cv::Mat& dst)
 {
@@ -685,6 +704,7 @@ void MainWindow::on_updatePlayer1PicButton_clicked()
     camera_ >> tmp;
     tmp = Mat(tmp,Rect(320,0,320,480));
     cv::flip(tmp,tmp,1);
+    cvtColor(tmp, tmp, CV_BGR2RGB);
     ui->player1Label->setPixmap(QPixmap::fromImage(QImage(tmp.data, tmp.cols, tmp.rows,tmp.step, QImage::Format_RGB888)));
 }
 
@@ -694,6 +714,7 @@ void MainWindow::on_updatePlayer2PicButton_clicked()
     camera_ >> tmp;
     tmp = Mat(tmp,Rect(0,0,320,480));
     cv::flip(tmp,tmp,1);
+    cvtColor(tmp, tmp, CV_BGR2RGB);
     ui->player2Label->setPixmap(QPixmap::fromImage(QImage(tmp.data, tmp.cols, tmp.rows,tmp.step, QImage::Format_RGB888)));
 }
 
@@ -713,5 +734,19 @@ void MainWindow::on_playPauseButton_clicked()
     else {
         attackTimer.start();
         ui->playPauseButton->setText("Press to pause !");
+        ui->titleLabel->setPixmap(QPixmap());
     }
+}
+
+void MainWindow::on_startingButton_clicked()
+{
+    ui->startingButton->hide();
+    ui->startingScreenBG->hide();
+    tatakaiSound_->play();
+    QPixmap bkgnd(":/img/GUI/BG1.PNG");
+    bkgnd = bkgnd.scaled(this->size(), Qt::IgnoreAspectRatio);
+    QPalette palette;
+    palette.setBrush(QPalette::Background, bkgnd);
+    this->setPalette(palette);
+    ui->titleLabel->setPixmap(QPixmap());
 }
